@@ -3,7 +3,29 @@ uuid = "3207fb7f-a2d6-47fa-abcb-ee7fd07ee121"
 authors = ["Florian Oswald <florian.oswald@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+DuckDB = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+
 [compat]
+DataFrames = "1.7.0"
+DataStructures = "0.18.22"
+Dates = "1.11.0"
+DuckDB = "1.2.2"
+FileIO = "1.17.0"
+HTTP = "1.10.16"
+JSON3 = "1.14.2"
+Markdown = "1.11.0"
+Revise = "3.7.6"
+SHA = "0.7.0"
 julia = "1.6.7"
 
 [extras]
