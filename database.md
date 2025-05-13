@@ -5,37 +5,39 @@
 Status             | Description
 ---------          |--------------
 with_author        | The package is with the author
-with_replicator     | The package is with the replicator
+with_replicator    | The package is with the replicator
 replicator_back_de | The package is with the DE after being returned from the replicator
 author_back_de     | The package is with the DE after being returned from the author
-acceptable_package          | The package is ready to be published
+acceptable_package | The package is ready to be published
 
 
 ## Tables
 
 papers             | iterations           | reports
 ---------          |--------------        |---------
-ms                 | ms                   | case_id
-contact1            | round                | replicator1
-contact2            | case_id              | replicator2
+paperID            | paperID              | case_id
+contact1           | round                | replicator1
+contact2           | case_id              | replicator2
 editor             | replicator1          | time1
 first_arrival_date | replicator2          | time2
 title              | time1                | their_comments
 status             | time2                | data_statement
-current_round      | their_comments       | software
+round              | their_comments       | software
 date_with_authors  | data_statement       | is_success
 is_remote          | software             | is_remote
 is_HPC             | is_success           | is_HPC
 data_statement     | date_with_authors    | running_time_of_code
-DOI                  | date_arrived_from_authors         | 
-|                  | date_assigned_repl        | 
-|                  | date_completed_repl       | 
-|                  | date_decision_de     | 
-|                  | file_request_id      | 
-|                  | decision_de          | 
-|                  | is_remote            | 
-|                  | is_HPC               | 
-|                  | running_time_of_code | 
+DOI                | date_arrived_from_authors         | 
+ github URL       | date_assigned_repl        | 
+ dataverse URL    | date_completed_repl       | 
+ dataverse label  | date_decision_de     | 
+  is_confidential | file_request_id      | 
+                  | decision_de          | 
+                  | is_remote            | 
+                  | is_HPC               | 
+                  | running_time_of_code | 
+
+
 
 * `date_with_authors` is the date at which the authors are notified about the next round, i.e. it's the start of the current iteration.
 
