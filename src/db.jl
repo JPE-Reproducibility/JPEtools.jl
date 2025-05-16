@@ -28,10 +28,12 @@
 #                    | running_time_of_code       | 
 
 
+
+
 "open DB connection"
 # oc() = DBInterface.connect(DuckDB.DB, "$(ENV["JPE_DUCKDB"])")
 function oc() 
-    con = DBInterface.connect(DuckDB.DB, "/Users/floswald/jpe.duckdb")
+    con = DBInterface.connect(DuckDB.DB, "/Users/floswald/JPE/jpe.duckdb")
     DBInterface.execute(con, "load gsheets")
     DBInterface.execute(con, """
         CREATE SECRET (
@@ -46,19 +48,22 @@ end
 "close DB connection"
 cc(con) = DuckDB.close(con)
 
+function db_df(table::String)
+    DataFrame(DBInterface.execute(con,"SELECT * FROM $(table)"))
+end
 
 function db_show()
-    con = oc()
+    # con = oc()
     d = DataFrame(DBInterface.execute(con,"SELECT * FROM duckdb_tables()"))
-    cc(con)
+    # cc(con)
     
     select(d, :database_name, :table_name,:temporary, :estimated_size, :column_count)
 end
 
 function db_show(table::String)
-    con = oc()
+    
     d = DataFrame(DBInterface.execute(con,"DESCRIBE $table"))
-    cc(con)
+    
     return d
     # select(d, :database_name, :table_name,:temporary, :estimated_size, :column_count)
 end
@@ -82,29 +87,50 @@ function db_drop(table)
     end
 end
 
+function db_types()
+    DataFrame(
+        string = ["INTEGER","VARCHAR","DATE","BOOLEAN","NUMERIC"],
+        dtype = [Int,String,Date,Bool,Float64])
+end
+
+function db_empty_df(table::String)
+    d = DataFrame(
+        DBInterface.execute(con, 
+            "PRAGMA table_info($table)"
+        )
+    )
+    d = innerjoin(d,db_types(), on = :type => :string)
+
+    # create an empty dataframe of column types in d.type, with 
+    # colnames in d.name
+    DataFrame([T[] for T in d.dtype], d.name)
+end
+
 function db_create()
-    con = oc()
     DBInterface.execute(con, """
         CREATE TABLE IF NOT EXISTS papers (
             paper_id INTEGER PRIMARY KEY,
+            round INTEGER,
+            status VARCHAR,
             journal VARCHAR,
+            firstname_of_author VARCHAR,
+            surname_of_author VARCHAR,
             email_of_author VARCHAR,
             email_of_second_author VARCHAR,
             handling_editor VARCHAR,
             first_arrival_date DATE,
             title VARCHAR,
-            status VARCHAR,
-            round INTEGER,
             date_with_authors DATE,
             is_remote BOOLEAN,
             is_HPC BOOLEAN,
             data_statement VARCHAR,
-            DOI VARCHAR,
             github_url VARCHAR,
-            dataverse_url VARCHAR,
+            dataverse_doi VARCHAR,
             dataverse_label VARCHAR,
             is_confidential BOOLEAN,
-            software VARCHAR
+            file_request_id  VARCHAR,
+            software VARCHAR,
+            comments VARCHAR
         )
         """)
     DBInterface.execute(con, """
@@ -134,7 +160,7 @@ function db_create()
             date_decision_de          DATE,
             file_request_id           VARCHAR,
             decision_de               VARCHAR,
-            PRIMARY KEY (paperID, round)
+            PRIMARY KEY (paper_id, round)
             );
         """)
     DBInterface.execute(con, """
@@ -158,10 +184,9 @@ function db_create()
             quality INTEGER,
             complexity INTEGER,
             repl_comments VARCHAR,
-            PRIMARY KEY (paperID, round)
+            PRIMARY KEY (paper_id, round)
         );
         """)
-    cc(con)
 end
 
 

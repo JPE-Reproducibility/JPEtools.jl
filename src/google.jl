@@ -1,4 +1,44 @@
-# https://duckdb-gsheets.com
+# use R googlesheets4 to work with google sheets
+
+function gs4_auth()
+
+    path = ENV["JPE_GOOGLE_KEY"]
+    R"""
+    googlesheets4::gs4_auth(path = $(path))
+    """
+end
+
+function gs4_browse()
+    R"""
+    d = googlesheets4::gs4_browse($(gs_arrivals_id()))
+    """
+end
+
+function gs4_arrivals()
+    R"""
+    d = googlesheets4::read_sheet($(gs_arrivals_id()), sheet = 'new-arrivals' )
+    """
+    @rget d
+end
+
+function gs4_append_arrivals(d)
+    R"""
+    googlesheets4::sheet_append($(gs_arrivals_id()), data = d, sheet = 'recorded' )
+    """
+end
+
+function gs4_delete_arrivals()
+    R"""
+    googlesheets4::range_delete($(gs_arrivals_id()), sheet = 'new-arrivals', range = "2:100" )
+    """
+end
+
+
+
+
+
+
+# avoid https://duckdb-gsheets.com
 
 
 
@@ -27,6 +67,7 @@ function printwalkdir(path)
 end
 
 
+gs_arrivals_id() = "1suU5e1Vc9LeVW9MgPFDsctZPSLKKwYn8pSf8LLMfNB8"
 gs_arrivals_url() = "https://docs.google.com/spreadsheets/d/1suU5e1Vc9LeVW9MgPFDsctZPSLKKwYn8pSf8LLMfNB8/edit"
 gs_jpe() = "1Pa-qShyqE57CdUXHlhHD95wIP9MFPJG9xmlzTVPeGzA"
 
@@ -45,28 +86,15 @@ end
 
 function read_google_arrivals()
 
-    con = oc()
-
-    DBInterface.execute(con,"CREATE OR REPLACE TABLE tmp_arrivals AS SELECT * FROM read_gsheet('$(gs_arrivals_url())',sheet='new-arrivals')")
-    gs_arrivals = DataFrame(DBInterface.execute(con,"SELECT * FROM tmp_arrivals"))
-
-    # write into local arrivals db
-    DBInterface.execute(con,"CREATE TABLE IF NOT EXISTS arrivals AS FROM tmp_arrivals WITH NO DATA")
-    DBInterface.execute(con,"INSERT INTO arrivals SELECT * FROM tmp_arrivals")
+    gs4_auth()
+    gs_arrivals = gs4_arrivals()
 
     # create a clean df from gs_arrivals
     df = gs_arrivals |> polish_names |> DataFrame
 
-    cc(con)
+    # append gs_arrivals to `recorded` spreadsheet
+    gs4_append_arrivals(gs_arrivals)
 
-    select!(df, Not(r"password"))
-    DataFrames.rename!(df,names(df,r"reminder")[1] => "dropbox_reminder")
-    DataFrames.rename!(df, 
-        "paper_id_(micro_macro)" => "paper_id_micro_macro",
-        "first_name(s)_of_author" => "firstname_of_author",
-        "email_of_second_author_(if_applicable)" => "email_of_second_author",
-        "does_the_das_mention_any_access_restrictions_for_used_data" => "is_confidential"
-    )
     return df
 end
 
@@ -84,20 +112,39 @@ clean_journalname(j::String) = replace(j, ":" => "-")
 function process_google_arrivals(df0::DataFrame)
 
     df = copy(df0)
+    select!(df, Not(r"password"))
+
+    DataFrames.rename!(df,names(df,r"reminder")[1] => "dropbox_reminder")
+    DataFrames.rename!(df, 
+        "paper_id_(micro_macro)" => "paper_id_micro_macro",
+        "first_name(s)_of_author" => "firstname_of_author",
+        "email_of_second_author_(if_applicable)" => "email_of_second_author",
+        "does_the_das_mention_any_access_restrictions_for_used_data" => "is_confidential"
+    )
     
     df.paper_id .= google_paperid(df,"paper_id")
     df.paper_id_micro_macro .= google_paperid(df,"paper_id_micro_macro")
     
-    # fix paper id column
+    # fix paper id column and drop
     df.paper_id = ifelse.(df.journal .== "JPE", df.paper_id, df.paper_id_micro_macro)
+    select!(df, Not(:paper_id_micro_macro))
 
-    # transform to arrival_date_em to date datatype
-    df.first_arrival_date .= gs_timestamp.(df.timestamp)
+    df.first_arrival_date .= Date.(df.timestamp)
+    df.is_confidential     = parsebool.(df.is_confidential)
+
+    df.file_request_id = Array{Union{Missing, String}}(missing, nrow(df))
+
+    df.status           .= "new_arrival"
+    df.round            .= 1
+    df.date_with_authors = Array{Union{Missing, Date}}(missing, nrow(df))
+    df.is_remote         = Array{Union{Missing, Bool}}(missing, nrow(df))
+    df.is_HPC            = Array{Union{Missing, Bool}}(missing, nrow(df))
+    df.data_statement    = Array{Union{Missing, String}}(missing, nrow(df))
+    df.dataverse_label   = Array{Union{Missing, String}}(missing, nrow(df))
+    df.software          = Array{Union{Missing, String}}(missing, nrow(df))
+    df.github_url        = Array{Union{Missing, String}}(missing, nrow(df))
     
-    df.is_confidential = parsebool.(df.is_confidential)
 
-    df.dropbox_file_request = Array{Union{Missing, String}}(missing, nrow(df))
- 
     # cycle through each row and check what needs to be done in each case.
     @debug "$(nrow(df)) new arrivals to process"
     for ir in eachrow(df)
@@ -128,63 +175,80 @@ function process_google_arrivals(df0::DataFrame)
             if choice == "y"
                 # create dropbox file request
 
-                # send email to authors with link
+                # draft email to authors with link
+
+                # add FR id to ir.
 
             else
                 @info "not sending file request link"
             end
         end
+
+        choice = ask(DefaultPrompt(["y", "no"], 1, "Package complete and ready for dispatch?"))
+        if choice == "y"
+            # nothing to do, status is correct
+        else
+            ir.status = "new_arrival_missing"
+        end
+
     end
     return df
 end
 
 
-function store_google_arrivals(df::DataFrame)
-    # write back into google sheet 'recorded' tab
-    # want to write back into a 'recorded' tab on the same sheet
-    # # check if this is the first row on recorded sheet
+function store_arrivals(df::DataFrame)
 
-    con = oc()
-
-    firsttime = false
-    n = try
-        DBInterface.execute(con,"FROM read_gsheet('$(gs_arrivals_url())',sheet='recorded')")
-    catch e 
-        if e isa DuckDB.QueryException
-            firsttime = true
-        else
-            error("Error reading recorded sheet: $e")
-        end
-    end
-
-    if firsttime
-        @info "first time, creating table header"
-        DBInterface.execute(con,"copy arrivals to '$(gs_arrivals_url())' WHERE date_recorded IS current_date (format gsheet, sheet 'recorded', range 'A1:Z100', overwrite_range FALSE,overwrite_sheet FALSE,  header TRUE)")
-    else
-        @info "appending to existing table"
-        DBInterface.execute(con,"copy gs_arrivals to '$(gs_arrivals_url())' WHERE date_recorded IS current_date (format gsheet, sheet 'recorded',  range 'A1:Z100', overwrite_range FALSE,overwrite_sheet FALSE,  header FALSE)")
-    end
+    # build an insertion dataframe
+    # i =
 
     # add to local database of papers
-    a = ask(DefaultPrompt(["y", "no"], 1, "Insert into local database?"))
+    a = ask(DefaultPrompt(["y", "no"], 1, "Insert $(nrow(df)) new papers into local database?"))
     if a == "y"
-        DBInterface.execute(con,"INSERT INTO papers")
+        appender = DuckDB.Appender(con, "papers")
+        for i in eachrow(df)
+            for j in i
+                DuckDB.append(appender, j)
+            end
+            DuckDB.end_row(appender)
+        end
+        DuckDB.close(appender)
+
+        @show db_df("papers")
 
     else
-
+        return 1
     end
-
-
 
     a = ask(DefaultPrompt(["y", "no"], 1, "delete responses on google sheet?"))
     if a == "y"
-        DBInterface.execute(con,"DELETE FROM gs_arrivals")
-        DBInterface.execute(con,"copy gs_arrivals to '$(gs_arrivals_url())' (format gsheet, sheet 'responses2', overwrite_sheet TRUE)")
+        gs4_delete_arrivals()
+    else
+        gs4_browse()
     end
 
-    cc(con)
-
     @info "done importing."
+end
+
+function create_repo(paperID)
+    # get doi
+    # create gh repo from template which can run prechecks and create template report
+    # commit docs in paper dropbox
+    # embed doi in commit message as [doi]
+    # the gh action needs to grab the [doi] 
+    # then call dv_download_dataset(doi)
+    # then run prechecks on code
+    # then *not* commit data and other large items
+    # but commit `generated`
+    # push back to github repo
+    # then alert the replicator!
+end
+
+
+function assign_new()
+    news = DataFrame(DBInterface.execute(con,
+        "SELECT * FROM papers WHERE status = 'new_arrival'"
+    ))
+
 end
 
 

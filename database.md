@@ -4,6 +4,8 @@
 
 Status             | Description
 ---------          |--------------
+new_arrival        | The package has arrived and awaits dispatch to replicator
+new_arrival_missing   | The package has arrived but is missing pieces before it can be dispatched
 with_author        | The package is with the author
 with_replicator    | The package is with the replicator
 replicator_back_de | The package is with the DE after being returned from the replicator
