@@ -6,24 +6,20 @@ function get_email_details()
     return Dict("paper" => "example_paper", "doi" => "10.1234/example")
 end
 
+
+
 # Step 2: Download package under DOI
 function download_package(doi::String, token::String)
+    if is_dv
+
+    else
+
+    end
     println("Downloading package for DOI: $doi with token: $token")
     # Implement logic to download package using the token
     return "/path/to/downloaded/package.zip"
 end
 
-# Step 3: Log in local database
-function log_database(status::String, details::Dict)
-    println("Logging status: $status")
-    # Implement logic to log in the database
-end
-
-# Step 4: Create repo from report template
-function create_repo(template_path::String, repo_name::String)
-    println("Creating repository from template...")
-    # Implement logic to create a repository
-end
 
 # Step 5: Unzip if necessary
 function unzip_package(package_path::String, output_dir::String)
@@ -168,6 +164,7 @@ function main()
     generate_file_sizes_md5(generated_folder, joinpath(generated_folder, "file_sizes.md"))
     analyze_code("/path/to/output")
     generate_template_report("/path/to/report")
+    write_gitignore(package_path)
     commit_changes("/path/to/repo")
     push_to_github("/path/to/repo")
     notify_replicator()

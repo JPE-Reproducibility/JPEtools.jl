@@ -2,9 +2,6 @@
 # - get all JPE papers on datavers
 # - with associated status (published, draft, revision) )
 
-# TODO: write function to set status of a dataset on dataverse with doi
-
-
 dvserver() = "https://dataverse.harvard.edu"
 
 function dv_fetch_all_datasets(token::String; subtree::String="JPE")
@@ -87,6 +84,10 @@ function dv_get_dataset_by_doi(doi::String, token::String)
 end
 
 function dv_download_dataset(api_token::String, persistent_id::String)
+
+    root = joinpath(@__DIR__,"..")
+    dest = joinpath(root, "replication-package" )
+
     # Construct the request URL
     url = "$(dvserver())/api/access/dataset/:persistentId/?persistentId=$(persistent_id)"
     
@@ -107,7 +108,7 @@ function dv_download_dataset(api_token::String, persistent_id::String)
         end
         println("Dataset saved to: $filename")
         # Now unzip the file if it is a .zip file
-        run(`unzip $filename -d ./extracted-package`)
+        run(`unzip $filename -d $dest`)
 
     else
         println("Failed to fetch dataset. Status code: ", response.status)

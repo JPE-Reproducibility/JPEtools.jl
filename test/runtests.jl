@@ -1,6 +1,12 @@
-using DEtools
+using JPEtools
 using Test
 
-@testset "DEtools.jl" begin
+
+
+@testitem "JPEtools.jl" begin
     # Write your tests here.
+    include("deps.jl")
+    tl = make_file_list()
+
+    
 end
