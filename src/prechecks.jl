@@ -39,7 +39,8 @@ end
 
 # Step 7: File sizes and MD5 checksums
 function generate_file_sizes_md5(folder_path::String, output_path::String; large_size = 100)
-    println("Generating file sizes and MD5 checksums...")
+
+    @info "Generating file sizes and MD5 checksums..."
 
     table = DataFrame(name = [],name_slug = [],  size = [], sizeMB = [], checksum= [])
     
@@ -66,7 +67,8 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
         end
     end
     if length(unique(table.checksum)) != nrow(table)
-        println("there are duplicate files")
+        
+        @info "there are duplicate files"
 
         open(joinpath(output_path,"duplicates.md"), "w") do io
             # Write Markdown table header
@@ -81,12 +83,14 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
     end
 
     if any(table.size .== 0)
-        println("there zero byte sized files")
+
+        @info "there are zero byte sized files"
+
         open(joinpath(output_path,"zero-files.md"), "w") do io
             # Write Markdown table header
             write(io, "| Filename | Size (MB) | Checksum (MD5) |\n")
             write(io, "|:---------|----------:|:--------------|\n")
-            for ir in eachrow(table[nonunique(table,:checksum),:])
+            for ir in eachrow(table[table.size .== 0,:])
                 write(io, "| $(ir.name) | $(round(ir.size, digits=2)) | $(ir.checksum) |\n")
             end
         end
@@ -94,7 +98,9 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
 
     # table of large files
     if any(table.sizeMB .>= large_size)
-        println("there are files larger than $large_size MB")
+        
+        @info "there are files larger than $large_size MB"
+
         open(joinpath(output_path,"large-files.md"), "w") do io
             # Write Markdown table header
             write(io, "| Filename | Size (MB)  |\n")

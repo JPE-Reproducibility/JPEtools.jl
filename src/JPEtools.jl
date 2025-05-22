@@ -31,6 +31,14 @@ include("dataverse.jl")
 
 # basic vars
 root() = joinpath(@__DIR__,"..")
-package() = joinpath(root(),"replication-package")
-
+# package() = joinpath(root(),"replication-package")
+function package(;which = nothing)
+    if isnothing(which)
+        # default
+        joinpath(root(),"replication-package")
+    else
+        test_package_path(which)
+    end
 end
+
+end # module

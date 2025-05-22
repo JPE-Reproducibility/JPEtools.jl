@@ -43,65 +43,118 @@ function rdir(dir::AbstractString, pat::Glob.FilenameMatch)
     end
     return result
 end
-rdir(dir::AbstractString, pat::AbstractString) = rdir(dir, Glob.FilenameMatch(pat))
+rdir(dir::AbstractString, pat::AbstractString) = rdir(dir, Glob.FilenameMatch(pat,"i"))
 
 "Find one specific file in the tree"
-findfile(directory, file) = [joinpath(root, file) for (root, dirs, files) in walkdir(directory) if file in files]
+function findfile(directory, file; casesensitive = true) 
+    if casesensitive
+        [joinpath(root, file) for (root, dirs, files) in walkdir(directory) if file in files]
+    else
+        [joinpath(root, file) for (root, dirs, files) in walkdir(directory) if file in lowercase.(files)]
+    end
+end
 
+"count how many files belong to each of code,data,documentation according to their file ending."
+function classify_files(kind::String;which_package = nothing)
 
-function get_program_files()
+     # write to `generated`
+     fp = joinpath(root(),"generated")
+     mkpath(fp)
 
-    extensions = ["ado","do","r","rmd","qmd","ox","m","py","nb","ipynb","sas","jl","f","f90","c","c++","sh","toml","yaml","yml","fs","fsx"]
+    sensitivenames = []
+    nonsensitivenames = []
+    files = []
 
-    fullnames = ["Makefile"]
+    if kind == "code"
+        extensions = ["ado","do","r","rmd","qmd","ox","m","py","nb","ipynb","sas","jl","f","f90","c","c++","sh","toml","yaml","yml","fs","fsx","tex","typst"]
+        
+        outfile = joinpath(fp,"program-files.txt")
 
-    files = String[]
+        sensitivenames = ["Makefile"]
 
-    # write to `generated`
-    fp = joinpath(root(),"generated")
-    mkpath(fp)
+    elseif kind == "data"
+        extensions = ["gpkg","dat","dta","rda","rds","rdata","ods","xls","xlsx","mat","csv","","txt","shp","xml","prj","dbf","sav","pkl","jld","jld2","gz","sas7bdat","rar","zip","7z","tar","tgz","bz2","xz"]
 
-    open(joinpath(fp,"program-files.txt"), "w") do io
+        outfile = joinpath(fp,"data-files.txt")
+
+    elseif kind == "docs"
+
+        extensions = ["pdf","md","docx","doc","pages"]
+
+        nonsensitivenames = ["readme.md","readme.docx","readme.pdf"]
+
+        outfile = joinpath(fp,"documentation-files.txt")
+
+    else 
+        error("kind not found: choose `code`, `data`, `docs`")
+    end
+
+    pkg = package(which = which_package)
+
+    open(outfile, "w") do io
 
         for e in extensions
-            # pat = Glob.GlobMatch("*/*.$e")
-            # println(pat)
-            s = rdir(package(),"*.$e")
+            s = rdir(pkg,"*.$e")
             if length(s) > 0
                 for ss in s
-                    x = split(ss,"../")[2]
-                    println(io, x)
+                    println(io, ss)
                     push!(files,ss)
                 end
             end
         end
-        for fu in fullnames
-            s = findfile(package(),fu)
+        for fu in sensitivenames
+            s = findfile(pkg,fu)
             if length(s) > 0
                 for ss in s
-                    x = split(ss,"../")[2]
-                    println(io, x)
+                    println(io, ss)
+                    push!(files,ss)
+                end
+            end
+        end
+        for fu in nonsensitivenames
+            s = findfile(pkg,lowercase(fu),casesensitive = false)
+            if length(s) > 0
+                for ss in s
+                    println(io, ss)
                     push!(files,ss)
                 end
             end
         end
     end
-
     return files
 end
 
 # Detects all relevant patterns in a line
 function detect_path_kinds(line::String)
-    # Regular expressions for path detection
-    WINDOWS_REGEX = r"[a-zA-Z0-9]\\*"
-    UNIX_REGEX = r"[^a-zA-Z0-9_/-]/[^a-zA-Z0-9_/-]"
-    DRIVE_LETTER_REGEX = r"^[A-Z]:\\\\*"
- 
-    windows = contains(line,"\\")
-    unix = contains(line,"/")
-    drive_letter = occursin(DRIVE_LETTER_REGEX, line)
+    windows = is_windows_filepath(line)
+    unix = is_unix_filepath(line)
+    drive_letter = occursin(r"[A-Z]:\\\\*", line)
     return (windows, unix, drive_letter)
 end
+
+"Find a Windows filepath, omitting various comment and command strings"
+function is_windows_filepath(line::String)
+    # find all patterns like : this\is\123\a\path-yes\1t\is
+    # but not 
+    # \cmd{ (latex command)
+    # a \ b  (right division operator)
+    # compute \int 
+    # https://stackoverflow.com/a/31976060/1168848
+    pat = r"^(?=.*[\w\-:]\\[\w\-])(?:(?!\\\w+{|^\\\w+ |\\\w+ | \\\w+ |[a-zA-Z] \\ [a-zA-Z]|[\<\>\|\?\*]|//).)*$"
+    contains(line,pat)
+end
+
+"Find a Unix filepath, omitting various comment and command strings"
+function is_unix_filepath(line::String)
+    # find all patterns like : here/we/have/a_/1234/unix-1/path
+    # but not 
+    # // or /* or */ (stata and C comments)
+    # a / b  (left division operator in various forms)
+    pat = r"^(?=.*[\w/-]/[\w/-])(?:(?!//|/\*|\*/|[\<\>\"\|\?\*]|\w / \w).)*$"
+    contains(line,pat)
+end
+
+
 
 # Process each file and categorize
 function check_file_paths(filepath)
@@ -115,8 +168,16 @@ function check_file_paths(filepath)
             for (i, line) in enumerate(eachline(io))
                 windows, unix, drive = detect_path_kinds(line)
                 if windows || unix
-                    push!(lines, @sprintf("Line %d: %s", i, strip(line)))
+                    whichone = if windows & !unix
+                            "windows"
+                        elseif !windows & unix
+                            "unix"
+                        elseif windows & unix
+                            "mixed"
+                        end
+                    push!(lines, @sprintf("Line %d, %s : %s",i, whichone, strip(line)))
                 end
+
                 has_windows |= windows
                 has_unix |= unix
                 has_drive |= drive
@@ -140,7 +201,7 @@ function check_file_paths(filepath)
 end
 
 "Check which fraction of file path separators goes into which direction: Windows or Unix?"
-function file_paths(files::Array{String})
+function file_paths(files::Array)
 
     # File path
     fp = joinpath(root(),"generated")
@@ -169,13 +230,15 @@ function file_paths(files::Array{String})
     end
 
     total_files = length(files)
-    return results, stats
+    # return results, stats
 
     # Write report
     open(output_file, "w") do io
         println(io, "### File Paths Report\n")
 
         println(io, "_Generated on $(Dates.now())_\n")
+
+        println(io, "**Warning**: Our search might incur both type 1 and type 2 errors. We disregard all patterns which contain any of `<>\"|?*`. Those characters are illegal in windows file paths, but they are legal for unix (only `/` cannot be part of the characters in a filepath). We incur type 2 error because we count mathematical expression a la `1/2` as a unix filepath.")
 
         println(io, "| Total Files | Total Windows Paths | Total Unix Paths | Total Mixed Paths | Total Drive Letters |")
         println(io, "|-------------|---------------------|------------------|-------------------|----------------------|")
@@ -212,22 +275,7 @@ function make_test_paths()
     x
 end
 
-@testitem "test detect_paths_kind()" begin
-    tl = JPEtools.make_test_paths()
-    results = [(false,true,false),(false,true,false),(false,true,false),(true,false,true),(true,false,false),(true,true,true)]
-    for (i,t) in enumerate(tl)
-        x = JPEtools.detect_path_kinds(t)
-        @test x == results[i]
-    end     
-end
-
-@testitem "test check_file_paths()" begin
-    tl = JPEtools.get_program_files()
-    @test JPEtools.check_file_paths(tl[2])[3] == false
-    @test JPEtools.check_file_paths(tl[1])[3] == false
-
-end
-
+test_paths_disk() = joinpath(@__DIR__,"..","scripts","test_filepaths.txt")
 
 function delete_package()
     pkg = joinpath(root(),"replication-package")
@@ -290,3 +338,13 @@ function create_example_package()
     @info "done."
 
 end
+
+
+function test_package_path(j)
+    if j == "ECTA"
+        joinpath(ENV["DROPBOX_JPE"],"test-packages","ECTA","replication_package")
+    else
+
+    end
+end
+
