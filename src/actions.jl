@@ -54,8 +54,17 @@ function findfile(directory, file; casesensitive = true)
     end
 end
 
-"count how many files belong to each of code,data,documentation according to their file ending."
-function classify_files(kind::String;which_package = nothing)
+"""
+    classify_files(pkg_path::String,kind::String)
+
+* `pkg_path`: path to (extracted) replication package
+* `kind`: what kind of classification is desired: `code`, `data`, `docs`
+
+count how many files belong to each of code,data,documentation according to their file ending.
+
+outputs `txt` files into folder `generated/` which will be created inside the repository.
+"""
+function classify_files(pkg_path::String,kind::String)
 
      # write to `generated`
      fp = joinpath(root(),"generated")
@@ -81,7 +90,7 @@ function classify_files(kind::String;which_package = nothing)
 
         extensions = ["pdf","md","docx","doc","pages"]
 
-        nonsensitivenames = ["readme.md","readme.docx","readme.pdf"]
+        # nonsensitivenames = ["readme.md","readme.docx","readme.pdf"]
 
         outfile = joinpath(fp,"documentation-files.txt")
 
@@ -89,12 +98,10 @@ function classify_files(kind::String;which_package = nothing)
         error("kind not found: choose `code`, `data`, `docs`")
     end
 
-    pkg = package(which = which_package)
-
     open(outfile, "w") do io
 
         for e in extensions
-            s = rdir(pkg,"*.$e")
+            s = rdir(pkg_path,"*.$e")
             if length(s) > 0
                 for ss in s
                     println(io, ss)
@@ -103,7 +110,7 @@ function classify_files(kind::String;which_package = nothing)
             end
         end
         for fu in sensitivenames
-            s = findfile(pkg,fu)
+            s = findfile(pkg_path,fu)
             if length(s) > 0
                 for ss in s
                     println(io, ss)
@@ -112,7 +119,7 @@ function classify_files(kind::String;which_package = nothing)
             end
         end
         for fu in nonsensitivenames
-            s = findfile(pkg,lowercase(fu),casesensitive = false)
+            s = findfile(pkg_path,lowercase(fu),casesensitive = false)
             if length(s) > 0
                 for ss in s
                     println(io, ss)
@@ -140,7 +147,7 @@ function is_windows_filepath(line::String)
     # a \ b  (right division operator)
     # compute \int 
     # https://stackoverflow.com/a/31976060/1168848
-    pat = r"^(?=.*[\w\-:]\\[\w\-])(?:(?!\\\w+{|^\\\w+ |\\\w+ | \\\w+ |[a-zA-Z] \\ [a-zA-Z]|[\<\>\|\?\*]|//).)*$"
+    pat = r"^(?=.*[\w\-:]\\[\w\-]|.*[\w\-:]\\\\[\w\-])(?:(?!\\\w+{|^\\\w+ |\\\w+ | \\\w+ |[a-zA-Z] \\ [a-zA-Z]|[\<\>\|\?\*]|//).)*$"
     contains(line,pat)
 end
 
@@ -157,8 +164,10 @@ end
 
 
 # Process each file and categorize
+"read each line of code and analyze. looking for file paths and hardcoded numeric constants"
 function check_file_paths(filepath)
     lines = String[]
+    hardcodes = String[]
     has_windows = false
     has_unix = false
     has_drive = false
@@ -177,10 +186,13 @@ function check_file_paths(filepath)
                         end
                     push!(lines, @sprintf("Line %d, %s : %s",i, whichone, strip(line)))
                 end
-
                 has_windows |= windows
                 has_unix |= unix
                 has_drive |= drive
+
+                if contains(line, r"\d{1,10}\.\d{3,10}")
+                    push!(hardcodes, @sprintf("Line %d, : %s",i,strip(line)))
+                end
             end
         end
     catch e
@@ -197,10 +209,14 @@ function check_file_paths(filepath)
         "none"
     end
 
-    return (lines, classification, has_drive)
+    return (lines, classification, has_drive, hardcodes)
 end
 
-"Check which fraction of file path separators goes into which direction: Windows or Unix?"
+"""
+Takes an array of file paths, reads each associated file and checks its content for the existence of file paths of various kinds: windows `C:\\file\\paths\\like\\this` or unix `/paths/like/that`. Also searches for numeric constants which could be hardcoded results.
+
+Outputs three markdown files into `generated/` with partial reports.
+"""
 function file_paths(files::Array)
 
     # File path
@@ -209,17 +225,21 @@ function file_paths(files::Array)
     isdir(fp) || error("execute `get_program_files()` first")
 
     # program_list_file = joinpath(fp,"program-files.txt")
-    output_file = joinpath(fp,"file-paths.md")
+    output_file = joinpath(fp,"report-file-paths.md")
 
     # run
     results = Dict{String, Vector{String}}()
+    hardcodes = Dict{String, Vector{String}}()
     stats = Dict("windows" => 0, "unix" => 0, "mixed" => 0, "drive" => 0)
 
     for file in files
         file = strip(file)
-        lines, classification, has_drive = check_file_paths(file)
+        lines, classification, has_drive, hardcoded = check_file_paths(file)
         if !isempty(lines)
             results[file] = lines
+        end
+        if !isempty(hardcoded)
+            hardcodes[file] = hardcoded
         end
         if classification != "none"
             stats[classification] += 1
@@ -238,9 +258,18 @@ function file_paths(files::Array)
 
         println(io, "_Generated on $(Dates.now())_\n")
 
-        println(io, "**Warning**: Our search might incur both type 1 and type 2 errors. We disregard all patterns which contain any of `<>\"|?*`. Those characters are illegal in windows file paths, but they are legal for unix (only `/` cannot be part of the characters in a filepath). We incur type 2 error because we count mathematical expression a la `1/2` as a unix filepath.")
+        println(io, 
+        """
+        **Warning**: Our search on file path types is imperfect and incurs both type 1 and type 2 errors. We aim to strike a reasonable balance between both. The below table is therefore only indicative. Detailed listings can be found in the appendix to this report.
+        
+        In this table we analyse all files which contain source code (not data and documentation), and we report the grand total of each type of filepath we encountered. 
+        
+        Please check and replace any `windows` filepaths with unix compliant paths, insofar as this is possible in your setup. (Notice that `STATA` allows `/` to be a filepath separator on a windows platform, hence this is a requirement for *all* `STATA` applications.)
+        
+        
+        """)
 
-        println(io, "| Total Files | Total Windows Paths | Total Unix Paths | Total Mixed Paths | Total Drive Letters |")
+        println(io, "| Files Analyzed | Windows Paths | Unix Paths | Mixed Paths | Drive Letters (`C:\\` etc) |")
         println(io, "|-------------|---------------------|------------------|-------------------|----------------------|")
         println(io, @sprintf("| %d | %d | %d | %d | %d |\n",
             total_files,
@@ -249,9 +278,13 @@ function file_paths(files::Array)
             stats["mixed"],
             stats["drive"]
         ))
+    end
+
+    open(joinpath(fp,"report-file-paths-detail.md"),"w") do io
+        println(io, "## Filepaths Analysis Details\n")
 
         if isempty(results)
-            println(io, "✅ No hardcoded file paths found.")
+            println(io, "No file paths found.")
         else
             for (file, lines) in results
                 println(io, "### $file")
@@ -262,7 +295,228 @@ function file_paths(files::Array)
             end
         end
     end
+
+    open(joinpath(fp,"report-hardcoded-numbers.md"),"w") do io
+        println(io, "## Potentially Hardcoded Numeric Constants\n")
+
+        if isempty(hardcodes)
+            println(io, "✅ No hardcoded numeric constants found.")
+        else
+            println(io,"\nWe found the following set of hard coded numbers. This may be completely legitimate (parameter input, thresholds for computations, etc), and is hence only for information.\n")
+            for (file, lines) in hardcodes
+                println(io, "### $file\n")
+                for l in lines
+                    println(io, "- ", l)
+                end
+                println(io)
+            end
+        end
+    end
+    nothing
 end
+
+"Read entire package content and tabulate file sizes with file hash to check for duplicates"
+function generate_file_sizes_md5(folder_path::String, output_path::String; large_size = 100)
+
+    table = DataFrame(name = [],name_slug = [],  size = [], sizeMB = [], checksum= [])
+
+    # count and analyze all files
+    for (root, _, files) in walkdir(folder_path)
+        for file in files
+            name = file
+            file_path = joinpath(root, file)
+            file_size = filesize(file_path)
+            size_mb = file_size / 1024^2  # Convert bytes to megabytes
+            md5_checksum =  open(file_path,"r") do fio
+                bytes2hex(sha1(fio))
+            end
+            push!(table, (name_slug = name, name = file_path, size = file_size, sizeMB = size_mb, checksum = md5_checksum))
+        end
+    end
+    sort!(table, [:size])
+
+    duplicates = nrow(table) - length(unique(table.checksum))
+    zeross = sum(table.size .== 0)
+    largefs = sum(table.sizeMB .>= large_size)
+    
+    open(joinpath(output_path,"report-file-sizes.md"), "w") do io
+
+        println(io,"""
+        ## File Size and Identity Report
+
+        **Summary:**
+
+        The package contains:
+
+        * $(nrow(table)) files
+        """)
+
+        println(io, duplicates > 0 ? "* $(duplicates) Duplicate files" : "* $(duplicates) Duplicate files")
+        println(io, largefs > 0 ? "* $(largefs) Files larger than $(large_size)MB" : "* No files larger than $(large_size)MB")
+        println(io, zeross > 0 ? "* $(zeross) files of size 0Kb" : "* No zero sized (0Kb) files")
+
+
+        # Write Markdown table header
+        println(io,"\n")
+        write(io, "| Filename | Size (MB) | Checksum (MD5) |\n")
+        write(io, "|:---------|----------:|:--------------|\n")
+
+        for ir in eachrow(table)
+            write(io, "| $(ir.name) | $(round(ir.sizeMB, digits=2)) | $(ir.checksum) |\n")
+        end
+    end
+    open(joinpath(output_path,"report-duplicates.md"), "w") do io
+
+        println(io,"""
+        ### Duplicate Files Report
+        """)
+
+        if duplicates > 0
+            
+            println(io, "We found the following duplicate files:\n")
+
+            # Write Markdown table header
+            write(io, "| Filename | Size (MB) | Checksum (MD5) |\n")
+            write(io, "|:---------|----------:|:--------------|\n")
+            for ir in eachrow(table[nonunique(table,:checksum),:])
+                write(io, "| $(ir.name) | $(round(ir.sizeMB, digits=2)) | $(ir.checksum) |\n")
+            end
+        else
+            println(io, "We did not find any duplicate files.")
+        end
+    end
+
+    open(joinpath(output_path,"report-zero-files.md"), "w") do io
+
+        println(io,"""
+        ### Zero Size Files Report
+        """)
+
+        if zeross > 0
+            println(io, "We found the following zero size files:\n")
+            # Write Markdown table header
+            write(io, "| Filename | Size (MB) | Checksum (MD5) |\n")
+            write(io, "|:---------|----------:|:--------------|\n")
+            for ir in eachrow(table[table.size .== 0,:])
+                write(io, "| $(ir.name) | $(round(ir.size, digits=2)) | $(ir.checksum) |\n")
+            end
+        else
+            println(io, "We not find any zero sized files.\n")
+        end
+    end
+
+    # table of large files
+    
+
+    open(joinpath(output_path,"report-large-files.md"), "w") do io
+        println(io,"""
+        ### Large Files Report
+        """)
+        if largefs > 0
+            println(io, "We found the following files larger than $(large_size)MB:\n")
+
+        
+            @info "there are files larger than $large_size MB"
+            # Write Markdown table header
+            write(io, "| Filename | Size (MB)  |\n")
+            write(io, "|:---------|----------:|\n")
+            for ir in eachrow(table[table.sizeMB .> large_size,:])
+                write(io, "| $(ir.name) | $(round(ir.sizeMB, digits=2))|\n")
+            end
+        else
+            println(io, "We not find any files larger than $(large_size)MB.\n")
+        end
+    end
+
+    return table
+end
+
+
+"""
+Read the README
+
+Find the README in the package and read from either `.md` or `.pdf` format. Then produce a dictionary with the mention of interesting terms, like software used, whether confidential etc.
+"""
+function read_README(; which_package = nothing)
+    fp = joinpath(root(),"generated")
+
+    doclist = joinpath(fp,"documentation-files.txt")
+    isfile(doclist) || error("the file $doclist must exist")
+
+    searches = ["confidential", "proprietary", "not available", "restricted", "HPC", "intensive", "IPUMS", "LEHD", "Statistics Norway", "Census", "IRB", "FDZ", "IAB", "RDC", "Statistics Sweden", "CASD", "VisitINPS", "THEOPS", "experiment", "seed", "identifiable"]
+    
+    d0 = readlines(doclist)
+    is_readmes = occursin.(r"README"i, d0)
+
+    open(joinpath(fp,"report-readme.md"),"w") do io
+        println(io, "### `README` Analysis\n")
+        if length(d0) == 0
+            println(io,"🚨 **No `README` found!** 🚨")
+            println(io,"The package **must** contain either `README.md` or `README.pdf`. This file needs to be placed at the root of your replication package. Please fix.")
+        else
+            # take first match
+            d = first(d0[is_readmes])
+            println(io, """
+            👉 We are considering the file at 
+
+            ```
+            $d 
+            ```
+            to be the relevant `README`.\n
+            """)
+
+            if dirname(d) != package(which = which_package) 
+                println(io, 
+                """**Wrong `README` location warning:**
+                
+                The `README`` file needs to be placed at the root of your replication package. **Please fix.**
+                """)
+            end
+
+            println(io, """
+            #### Keyword search
+
+            👉 We searched the readme for keywords to help the reproducibility team. This is only for internal use. 
+
+            _Replicator_: The line numbers refer to the readme file printed above.
+
+            """)
+
+            if contains(d, r".md"i) 
+                open(d, "r") do jo 
+                    for s in searches
+                        for (i, line) in enumerate(eachline(jo))
+                            if occursin(Regex(s,"i"),line)
+                                println(io, @sprintf("Line %d : %s",i, strip(line)))
+                            end
+                        end
+                    end
+                end
+            elseif contains(d, r".pdf"i) 
+                tmpfile = joinpath(fp,"temp.txt")
+                try
+                    z = getPDFText(d,tmpfile)
+                catch e
+                    println(io,"README.PDF text extraction failed with error $e")
+                    return 1
+                end
+                open(tmpfile, "r") do jo 
+                    for (i, line) in enumerate(eachline(jo))
+                        for s in searches
+                            if occursin(Regex(s,"i"),line)
+                                println(io, @sprintf("Line %d : %s",i, strip(line)))
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    @info "pdf reader done."
+end
+
+
+## Testing functions
 
 function make_test_paths()
     x = String[]
@@ -343,8 +597,79 @@ end
 function test_package_path(j)
     if j == "ECTA"
         joinpath(ENV["DROPBOX_JPE"],"test-packages","ECTA","replication_package")
+    elseif j == "QE"
+        joinpath(ENV["DROPBOX_JPE"],"test-packages","QE","ReplicationPackage")
+    elseif j == "AER"
+        joinpath(ENV["DROPBOX_JPE"],"test-packages","AER","228401-V1")
     else
-
+        error("one of ECTA, QE or AER. no other test package")
     end
 end
 
+
+"""
+​```
+    getPDFText(src, out) -> Dict 
+​```
+- src - Input PDF file path from where text is to be extracted
+- out - Output TXT file path where the output will be written
+return - A dictionary containing metadata of the document
+"""
+function getPDFText(src, out)
+    # handle that can be used for subsequence operations on the document.
+    doc = pdDocOpen(src)
+    
+    # Metadata extracted from the PDF document. 
+    # This value is retained and returned as the return from the function. 
+    docinfo = pdDocGetInfo(doc) 
+    open(out, "w") do io
+    
+        # Returns number of pages in the document       
+        npage = pdDocGetPageCount(doc)
+
+        for i=1:npage
+        
+            # handle to the specific page given the number index. 
+            page = pdDocGetPage(doc, i)
+            
+            # Extract text from the page and write it to the output file.
+            pdPageExtractText(io, page)
+
+        end
+    end
+    # Close the document handle. 
+    # The doc handle should not be used after this call
+    pdDocClose(doc)
+    return docinfo
+end
+
+
+function precheck_package(; which = nothing)
+
+    pkg = package(which = which)
+    @info "Starting precheck of package $(basename(pkg))"
+
+    out = joinpath(root(),"generated")
+    mkpath(out)
+
+    # make package manifest table
+    @info "generate package manifest: all files, sizes, md5 hash"
+    generate_file_sizes_md5(pkg,out)
+
+    # classify all files
+    @info "Classify each file as code/data/docs"
+    codefiles = classify_files(package(which = which),"code")
+    datafiles = classify_files(package(which = which),"data")
+    docsfiles = classify_files(package(which = which),"docs")
+
+    # check file paths in code files
+    @info "Parse code files and search for filepaths"
+    file_paths(codefiles)
+
+    # parse README
+    @info "Read the README file"
+    read_README( which_package = which )
+
+    @info "precheck done."
+
+end

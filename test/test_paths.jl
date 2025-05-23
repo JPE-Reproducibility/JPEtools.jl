@@ -58,7 +58,7 @@ end
 end
 
 @testitem "test check_file_paths()" begin
-    tl = JPEtools.classify_files("code", which_package = "ECTA")
+    tl = JPEtools.classify_files(JPEtools.package(which = "ECTA"),"code")
     @test JPEtools.check_file_paths(tl[2])[3]
     @test JPEtools.check_file_paths(tl[2])[2] == "windows"
     @test !JPEtools.check_file_paths(tl[1])[3]
