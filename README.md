@@ -1,23 +1,32 @@
-# JPEtools
+# JPE Report Template 
 
 [![Build Status](https://github.com/floswald/JPEtools.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/floswald/JPEtools.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
+## Requirements
 
-## Template repo for JPE reports
+* Take note that this repo is called something like `JPE-Authorname-12345678`
+* git is installed on your sytem
+* clone this repo to a findable location on your computer (maybe `~/JPE-replications`?). Click on the green button "Code"
+* If so, you will have `~/JPE-replications/JPE-Authorname-12345678`. 
+* In your assignment email, there was a link to a dropox folder. Download and unzip as `replication-package`. That is, your repo should look like this
 
-Usage of this repo:
+```
+.
+├── generated
+├── images
+├── replication-package
+├── src
+└── test
+```
 
-1. this is template for each new paper repo
-2. from this template, we create repo by giving `Author-12345678` and `doi`
-3. We copy paper and appendix into it at the root
-4. We download the package using `doi` from dv (or equivalent location like zenodo) to `/replication-package`
-5. Only if DE
-   1. run prechecks on package content and create `generated`
-   2. assemble md report template
-   3. delete `/replication-package`
-   4. git commit to repo
-   5. push to github
-6. Replicator clones from github
-7. re-downloads and replaces as  `/replication-package`
-8. runs job inside repo, using `template-config.do`
+(notice - the final two folders `src` and `test` are part of my toolbox to pre-process packages and you should not touch those folders)
+
+
+
+## Recommended workflow
+
+1. Get VScode
+2. install [markdown paste](https://marketplace.visualstudio.com/items/?itemName=telesoho.vscode-markdown-paste-image) extension
+3. Go to [https://jpe-reproducibility.github.io/jpereplicators/](https://jpe-reproducibility.github.io/jpereplicators/) for step by step guidance.
+
 

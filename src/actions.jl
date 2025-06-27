@@ -1,26 +1,4 @@
 
-
-
-
-
-function run_prechecks(doi)   
- 
-    # then call dv_download_dataset(doi)
-    # then run prechecks on code
-
-end
-
-function commit_generated()
-        # then *not* commit data and other large items
-    # but commit `generated`
-
-end
-
-function push_back()
-    # push back to github repo
-    # then alert the replicator!
-end
-
 # push back to `generated` to repo
 # https://joht.github.io/johtizen/build/2022/01/20/github-actions-push-into-repository.html#example-1
 # - name: GIT commit and push docs
@@ -34,12 +12,13 @@ end
 #     git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
 #     git push
 
+myfun() = abspath(@__DIR__,"..")
 
 "recursively search a directory tree for match"
 function rdir(dir::AbstractString, pat::Glob.FilenameMatch)
     result = String[]
     for (root, dirs, files) in walkdir(dir)
-        append!(result, filter!(f -> occursin(pat, f), joinpath.(root, files)))
+        append!(result, filter!(f -> occursin(pat, f), joinpath.(root, files)))     
     end
     return result
 end
@@ -64,7 +43,7 @@ count how many files belong to each of code,data,documentation according to thei
 
 outputs `txt` files into folder `generated/` which will be created inside the repository.
 """
-function classify_files(pkg_path::String,kind::String)
+function classify_files(pkg_path::String,kind::String; relpath = false)
 
      # write to `generated`
      fp = joinpath(root(),"generated")
@@ -84,7 +63,7 @@ function classify_files(pkg_path::String,kind::String)
     elseif kind == "data"
         extensions = ["gpkg","dat","dta","rda","rds","rdata","ods","xls","xlsx","mat","csv","","txt","shp","xml","prj","dbf","sav","pkl","jld","jld2","gz","sas7bdat","rar","zip","7z","tar","tgz","bz2","xz"]
 
-        outfile = joinpath(fp,"data-files.txt")
+        outfile = joinpath(fp,"data-files.md")
 
     elseif kind == "docs"
 
@@ -105,6 +84,7 @@ function classify_files(pkg_path::String,kind::String)
             if length(s) > 0
                 for ss in s
                     println(io, ss)
+
                     push!(files,ss)
                 end
             end
@@ -162,6 +142,14 @@ function is_unix_filepath(line::String)
 end
 
 
+# PII checker strings
+pii_strings_names() = join(["name", "fname", "lname", "first_name", "last_name"],"|")
+pii_strings_dates() = join(["birth", "birthday", "bday", "dob"],"|")
+pii_strings_locations() = join([
+    "district",    "city",    "country",    "subcountry",    "parish",    "loc",    "street",    "village",    "community",    "address",    "gps",    "degree",    "minute",    "second",    "lat",    "lon",    "coord",    "location",    "house",    "compound",    "panchayat",    "territory",    "municipality",    "precinct",    "block",    "zipcode",    "zip"],"|")
+pii_strings_other() = join([
+    "school",    "social",    "network",    "census",    "gender",    "sex",    "fax",    "email",    "url",    "child",    "beneficiary",    "mother",    "wife",    "father",    "husband",    "phone",    "spouse",    "daughter",    "son"], "|")
+
 
 # Process each file and categorize
 "read each line of code and analyze. looking for file paths and hardcoded numeric constants"
@@ -171,6 +159,10 @@ function check_file_paths(filepath)
     has_windows = false
     has_unix = false
     has_drive = false
+    pii_names = String[]
+    pii_dates = String[]
+    pii_locations = String[]
+    pii_other = String[]
 
     try
         open(filepath, "r") do io
@@ -190,8 +182,20 @@ function check_file_paths(filepath)
                 has_unix |= unix
                 has_drive |= drive
 
-                if contains(line, r"\d{1,10}\.\d{3,10}")
+                if contains(line, hardcode_regex())
                     push!(hardcodes, @sprintf("Line %d, : %s",i,strip(line)))
+                end
+                if contains(line, Regex("$(pii_strings_other())","i"))
+                    push!(pii_other,@sprintf("Line %d, : %s",i,strip(line)))
+                end
+                if contains(line, Regex("$(pii_strings_names())","i"))
+                    push!(pii_names,@sprintf("Line %d, : %s",i,strip(line)))
+                end
+                if contains(line, Regex("$(pii_strings_dates())","i"))
+                    push!(pii_dates,@sprintf("Line %d, : %s",i,strip(line)))
+                end
+                if contains(line, Regex("$(pii_strings_locations())","i"))
+                    push!(pii_locations,@sprintf("Line %d, : %s",i,strip(line)))
                 end
             end
         end
@@ -209,8 +213,21 @@ function check_file_paths(filepath)
         "none"
     end
 
-    return (lines, classification, has_drive, hardcodes)
+    # collate all piis
+    piis = [pii_names...,pii_dates...,pii_locations...,pii_other...]
+
+    # pii = Dict(
+    #     :names => pii_names,
+    #     :dates => pii_dates,
+    #     :locations => pii_locations,
+    #     :other => pii_other
+    # )
+
+    return (lines, classification, has_drive, hardcodes,piis)
 end
+
+
+hardcode_regex() = r"\d{1,10}\.\d{3,10}"
 
 """
 Takes an array of file paths, reads each associated file and checks its content for the existence of file paths of various kinds: windows `C:\\file\\paths\\like\\this` or unix `/paths/like/that`. Also searches for numeric constants which could be hardcoded results.
@@ -230,16 +247,20 @@ function file_paths(files::Array)
     # run
     results = Dict{String, Vector{String}}()
     hardcodes = Dict{String, Vector{String}}()
+    piis = Dict{String, Vector{String}}()
     stats = Dict("windows" => 0, "unix" => 0, "mixed" => 0, "drive" => 0)
 
     for file in files
         file = strip(file)
-        lines, classification, has_drive, hardcoded = check_file_paths(file)
+        lines, classification, has_drive, hardcoded, pii = check_file_paths(file)
         if !isempty(lines)
             results[file] = lines
         end
         if !isempty(hardcoded)
             hardcodes[file] = hardcoded
+        end
+        if !isempty(pii)
+            piis[file] = pii
         end
         if classification != "none"
             stats[classification] += 1
@@ -247,6 +268,7 @@ function file_paths(files::Array)
         if has_drive
             stats["drive"] += 1
         end
+
     end
 
     total_files = length(files)
@@ -287,7 +309,7 @@ function file_paths(files::Array)
             println(io, "No file paths found.")
         else
             for (file, lines) in results
-                println(io, "### $file")
+                println(io, "**$(path_splitter(file))**\n")
                 for l in lines
                     println(io, "- ", l)
                 end
@@ -304,7 +326,7 @@ function file_paths(files::Array)
         else
             println(io,"\nWe found the following set of hard coded numbers. This may be completely legitimate (parameter input, thresholds for computations, etc), and is hence only for information.\n")
             for (file, lines) in hardcodes
-                println(io, "### $file\n")
+                println(io, "**$(path_splitter(file))**\n")
                 for l in lines
                     println(io, "- ", l)
                 end
@@ -312,8 +334,28 @@ function file_paths(files::Array)
             end
         end
     end
+
+    open(joinpath(fp,"report-pii.md"),"w") do io
+        println(io, "## Potential Personal Identifiable Information (PII)\n")
+
+        if isempty(piis)
+            println(io, "✅ No PII found.")
+        else
+            println(io,"\nWe found the following instances of potentially personally identifying information. This may be completely legitimate but might be worth checking. *As a reminder, privacy legislation in many countries (e.g. GDPR in EU) prohibits the dissemination of personal identifiable information without prior (and documented) consent of individuals.* If indeed you want to publish such information with your replication package, you should probably have obtained IRB approval for this - please check!\n")
+            for (file, lines) in piis
+                println(io, "**$(path_splitter(file))**\n")
+                for l in lines
+                    println(io, "- ", l)
+                end
+                println(io)
+            end
+        end
+    end
+
     nothing
 end
+
+path_splitter(path::String) = split(path, basename(PKG_ROOT), limit = 2)[end]
 
 "Read entire package content and tabulate file sizes with file hash to check for duplicates"
 function generate_file_sizes_md5(folder_path::String, output_path::String; large_size = 100)
@@ -325,12 +367,13 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
         for file in files
             name = file
             file_path = joinpath(root, file)
+            short_path = path_splitter(file_path)
             file_size = filesize(file_path)
             size_mb = file_size / 1024^2  # Convert bytes to megabytes
             md5_checksum =  open(file_path,"r") do fio
                 bytes2hex(sha1(fio))
             end
-            push!(table, (name_slug = name, name = file_path, size = file_size, sizeMB = size_mb, checksum = md5_checksum))
+            push!(table, (name_slug = name, name = short_path, size = file_size, sizeMB = size_mb, checksum = md5_checksum))
         end
     end
     sort!(table, [:size])
@@ -437,7 +480,7 @@ Read the README
 
 Find the README in the package and read from either `.md` or `.pdf` format. Then produce a dictionary with the mention of interesting terms, like software used, whether confidential etc.
 """
-function read_README(; which_package = nothing)
+function read_README()
     fp = joinpath(root(),"generated")
 
     doclist = joinpath(fp,"documentation-files.txt")
@@ -465,7 +508,7 @@ function read_README(; which_package = nothing)
             to be the relevant `README`.\n
             """)
 
-            if dirname(d) != package(which = which_package) 
+            if dirname(d) != PKG_ROOT
                 println(io, 
                 """**Wrong `README` location warning:**
                 
@@ -528,8 +571,6 @@ function make_test_paths()
     push!(x,raw"D:\Your\dummy\path/with/mixed/separators")
     x
 end
-
-test_paths_disk() = joinpath(@__DIR__,"..","scripts","test_filepaths.txt")
 
 function delete_package()
     pkg = joinpath(root(),"replication-package")
@@ -643,10 +684,14 @@ function getPDFText(src, out)
     return docinfo
 end
 
+function runcloc()
+    run(`cloc --md --quiet --out=generated/report-cloc.md $(package(which = "ECTA"))`)
+end
+
 
 function precheck_package(; which = nothing)
 
-    pkg = package(which = which)
+    pkg = PKG_ROOT
     @info "Starting precheck of package $(basename(pkg))"
 
     out = joinpath(root(),"generated")
@@ -658,9 +703,12 @@ function precheck_package(; which = nothing)
 
     # classify all files
     @info "Classify each file as code/data/docs"
-    codefiles = classify_files(package(which = which),"code")
-    datafiles = classify_files(package(which = which),"data")
-    docsfiles = classify_files(package(which = which),"docs")
+    codefiles = classify_files(PKG_ROOT,"code")
+    datafiles = classify_files(PKG_ROOT,"data")
+    docsfiles = classify_files(PKG_ROOT,"docs")
+
+    # run cloc to get line counts
+    cloc = read(run(`cloc --md --quiet --out=generated/report-cloc.md $pkg`))
 
     # check file paths in code files
     @info "Parse code files and search for filepaths"
@@ -668,7 +716,7 @@ function precheck_package(; which = nothing)
 
     # parse README
     @info "Read the README file"
-    read_README( which_package = which )
+    read_README( )
 
     @info "precheck done."
 

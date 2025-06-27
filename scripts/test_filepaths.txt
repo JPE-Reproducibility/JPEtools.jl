@@ -1,6 +1,0 @@
-C:\this\path
-C:\this\33jpe\path
-C:\this\path/is/mixed
-this\path/is/mixed/too
-/plain/unix/path
-partial\990\windows\path\ran.execute

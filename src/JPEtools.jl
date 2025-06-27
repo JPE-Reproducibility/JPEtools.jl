@@ -21,37 +21,22 @@ using Infiltrator
 using TestItems
 using Term.Prompts
 using PDFIO
+using ProgressMeter
+using CSV
 
 
 # dv token
-token() = ENV["JPE_DV"]
+# dvtoken() = haskey(ENV,"JPE_DV") ? ENV["JPE_DV"] : error("You must set ENV var JPE_DV")
+dvtoken() = ENV["JPE_DV"]
 
 # include("prechecks.jl")
 include("actions.jl")
 include("dataverse.jl")
 
-# basic vars
-root() = joinpath(@__DIR__,"..")
-# package() = joinpath(root(),"replication-package")
-function package(;which = nothing)
-    if isnothing(which)
-        # default
-        p = joinpath(root(),"replication-package")
-        if !isdir(p) 
-            @warn """
-            🚨 you need to download and extract as `replication-package` into $(root())!
-            
-            👉 Will create a dummy package now for test purposes. If you are not testing: call `JPEtools.delete_package()` and download the replication package first.
-            
-            """
+global PKG_ROOT = haskey(ENV,"PKG_ROOT") ? haskey(ENV,"PKG_ROOT") : joinpath(@__DIR__,"..", "replication-package")
 
-            @info "creating dummy test package"
-            create_example_package()
-        end
-        return p
-    else
-        test_package_path(which)
-    end
-end
+# not necessarily equal to PKG_ROOT
+root() = joinpath(@__DIR__,"..")
+
 
 end # module

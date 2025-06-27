@@ -1,0 +1,296 @@
+           README: Replication Package for “Transparency and Percent
+           Plans”
+
+           March 14, 2025
+
+           Overview
+           The code in this replication package constructs analysis ffles from the restricted-use Texas Higher Education
+           Opportunity Project (THEOP) dataset 1 and auxiliary public datasets, then uses these ffles to estimate the
+           model described in “Transparency and Percent Plans”, simulate counterfactuals, and produce all numbers
+           and exhibits in the paper and appendices. Two main ffles run all of the code to produce the 3 tables and 4
+           ffgures in the paper, as well as the 7 tables and 9 ffgures in the Online Appendix.
+           The Stata code (master ffle: “code/setup/Master.do”) constructs analysis ffles, as well as some exhibits in
+           the paper. The user should expect this code to run for a few minutes.
+           The Julia code (master ffle: “code/analysis/TTTnew.jl”) then loads analysis ffles that have been produced by
+           the Stata code, runs the remaining analyses, and produces the remaining numbers and exhibits. The user
+           should expect this code to run for approximately two days to produce all exhibits. Options are provided so
+           that the code may be run in steps.
+           Because the data was obtained under a data-use agreement that prohibits sharing, the primary dataset is not
+           included in this replication package. Simulated datasets are provided.
+
+           Data Availability and Provenance Statements
+           This paper involves secondary use of data. The main source is the Texas Higher Education Opportunity
+           Project (Tienda and Sullivan (2011)).
+           Restricted-use ffles may be obtained via the Inter-University Consortium for Political and Social
+           Research (ICPSR; icpsr.umich.edu). The dataset is available as ICPSR 29841. At the time
+           of writing (October 2024) it may be accessed via an application submitted to the ICPSR at
+           https://www.icpsr.umich.edu/web/DSDR/studies/29841.
+           The author originally received access to this data on July 23, 2012.
+           The following datasets are used in addition.
+              1.THEOP public-use data (Tienda and Sullivan (2011)): accessed via theop.princeton.edu
+                in 2012. This website is no longer operative, but public-use ffles may be obtained via
+                https://oprdata.princeton.edu/archive/theop/.
+              2. March CPS data on occupation, education, and income (Census Bureau and BLS (2003)), accessed via
+                IPUMS (https://cps.ipums.org/cps/), July 2012.
+              3.IPEDS 2003 data (National Center for Education Statistics (2005)): directory information
+               (“hd2003_data_stata.csv”), student ffnancial aid (“sfa0203_data_stata.csv”), and institutional charac-
+                teristics(“ic2003_data_stata.csv”), accessed via NCES, July 2012. At the time of writing, this data may
+                be downloaded at https://nces.ed.gov/ipeds/datacenter/DataFiles.aspx?year=2003&surveyNumber=-
+                1&sid=5e6ce655-aa71-4e53-ab9c-f9005443780c&rtid=7.
+              4.SAT-ACT crosswalk: I use the 1999 SAT-ACT concordance table published by the college board. (College
+                Board (2012)). The data were downloaded from http://research.collegeboard.org/sites/default/ffles/publications/2012/7/researchnote-
+                1999-7-concordance-sat-act- students.pdf in July 2012. In addition, I provide an additional crosswalk
+                based on an internal study at the University of Texas (University of Texas Admissions Offfce (2011)),
+                accessed July 2012 at http://www.utexas.edu/student/admissions/research/ACTSATconcordance.html.
+             1 Tienda and Sullivan (2011).
+
+
+
+
+                                                  1              5.Geographic locations of colleges: constructed by the author in 2012, using the Google Maps API at the
+                time.
+
+           Statement about Rights
+             ✓ I certify that the author of the manuscript has legitimate access to and permission to use the data used
+                in this manuscript.
+             ✓ I certify that all data provided in this replication package may be shared by the authors without
+                restriction.
+
+           Summary of Availability
+             ✓ Some datacannot be madepublicly available.
+
+           Details on each Data Source
+              •THEOP restricted-use ffles (THEOP): Not available; simulated data provided.
+              •THEOP public-use ffles (THEOP-Public): Not available; simulated data provided.
+              •March CPS data (CPS):
+                  –Provided in replication package: “replication_package/data/raw/cps/cps_00003.csv”.
+              •Integrated Postsecondary Education Data System (IPEDS):
+                  –Provided in replication package: “replication_package/data/raw/IPEDS_200304”.
+                  –Data dictionaries provided (in code - see doffles in directory).
+              •Geocoded locations of IPEDS institutions, (based on author’s use of Google Maps API in 2012):
+                  –Provided in replication package: “replication_package/data/raw/geocoded/J_geocoded.{dta,csv}”.
+              •SAT-ACT Concordance (SAT-ACT-CONCORDANCE):
+                  –Provided: “replication_package/data/raw/SAT-ACT crosswalk/crosswalk.csv”.
+                  –See readme in directory “replication_package/data/raw/SAT-ACT crosswalk/”
+           Code for data cleaning and analysis is provided as part of the replication package.
+
+           Dataset list
+
+           Data ffle Source Notes Provided
+           ICPSR_29841/DS0001/29841-0001-Data-REST.dta   THEOP Conffdential - Survey Wave 1 No
+           ICPSR_29841/DS0002/29841-0002-Data-REST.dta   THEOP Conffdential - Survey Wave 2 No
+           ICPSR_29841/DS0005/29841-0005-Data-REST.dta   THEOP Conffdential - UTA Admission No
+           ICPSR_29841/DS0006/29841-0006-Data-REST.dta   THEOP Conffdential - UTA Transcripts No
+           ICPSR_29841/DS0007/29841-0007-Data-REST.dta   THEOP Conffdential - TAMU Admission No
+           ICPSR_29841/DS0008/29841-0008-Data-REST.dta   THEOP    Conffdential - TAMU Transcripts  No
+           THEOP/{pa.csv,amk.csv,tt.csv,ri.csv,sm.csv}   THEOP    Non-Flagship Admin Data;      No
+                                                    public-use   Requires Agreement
+                                                    datasets
+           data/raw/cps/cps_00003.csv                  CPS Public Yes
+            data/raw/IPEDS_200304/sfa0203_data_stata.csv  IPEDS Public Yes
+            data/raw/IPEDS_200304/ic2003_data_stata.csv   IPEDS Public Yes
+            data/raw/IPEDS_200304/hd2003_data_stata.csv   IPEDS Public Yes
+            data/raw/SAT-ACT crosswalk/crosswalk.csv      College     Public Yes
+                                                    Board;
+                                                    UT-Austin
+                                                    Admissions
+                                                    Offfce
+            data/raw/geocoded/J_geocoded.csv             Author’s    Public Yes
+                                                    Own Work
+
+
+                                                  2           Note:  The code that was used to construct “J_geocoded.dta” and “J_geocoded.csv” is provided in
+           replication_package/code/setup/geocode_colleges.do. Due to a recent change in the Google Maps API, this
+           code no longer runs as written. I provide the original output, as produced in October 2012.
+
+           Simulated datasets provided
+
+           Data ffle Notes
+           data/raw/ICPSR_29841_simulated/DS0001/29841-0001-Data-REST.dta  Survey Wave 1
+           data/raw/ICPSR_29841_simulated/DS0002/29841-0002-Data-REST.dta  Survey Wave 2
+           data/raw/ICPSR_29841_simulated/DS0005/29841-0005-Data-REST.dta  UTA Admission
+           data/raw/ICPSR_29841_simulated/DS0006/29841-0006-Data-REST.dta  UTA Transcript Data
+           data/raw/ICPSR_29841_simulated/DS0007/29841-0007-Data-REST.dta  TAMU Admission
+           data/raw/ICPSR_29841_simulated/DS0008/29841-0008-Data-REST.dta  TAMU Transcript Data
+           data/raw/THEOP_public_simulated/{pa,amk,tt,ri,sm}.csv          Non-Flagship Data
+
+
+           Computational requirements
+           Software Requirements
+           The code requires:
+              •Stata (code was last run with version 15.1)
+              •Julia 1.10 (or higher; code was last run with version 1.10.0)
+           Several software packages are used.
+              •The Stata code usesestout,sutex,tabout, andgeodist. The latest versions (as of October 8, 2024) were
+                used.
+              •The Julia code uses the packages listed inproject.toml.
+                This ffle will programatically install and load the versions of the packages that were used for estimation,
+                see https://pkgdocs.julialang.org/v1/environments/.
+
+           Controlled Randomness
+           Note: due to the long run-time, the code saves intermediate results at several points, and provides options to
+           run parts of the code in blocks, e.g. to load previously-saved parameter estimates and run counterfactuals
+           without re-running the estimation routine.
+           Accordingly, random seeds are set in multiple places to ensure that each block, e.g. starting values, estimation,
+           and counterfactuals, produce identical results, regardless of which blocks have been run in the particular
+           session that is open.
+              •For the main routine, random seeds are set at lines 18, 62 78, and 90 of program “TTTnew.jl”.
+              •For inference (standard errors via the bootstrap), a random seed is set at line 8 of ‘bootstrap_2024.jl”
+
+           Memory, Runtime, Storage Requirements
+           Summary The code was run on a PC with two Intel(R) Xeon(R) CPU E5-2687W v4 3.00 GHz processors,
+           with a total of 48 cores and 128 GB of RAM. The operating system was Windows 10 Pro (64-bit).
+           The Stata code runs in about a minute and has low memory needs.
+           The Julia code runs for approximately two days on this machine, and consumes approximately 70 GB of
+           RAM and 100 GB of storage. Memory may be saved by running the code in steps, e.g. estimation ffrst, then
+           counterfactuals.
+           In Julia, the –threads option was used; the code uses 71 threads on 48 cores.
+
+                                                  3           Description of programs/code
+              •Programs incode/setupload and clean the raw data, and produce some exhibits. The Stata ffle
+                code/setup/master.dowill run them all, provided that one has access to the restricted datasets.
+              •Programs incode/analysisgenerate the remaining ffgures, tables, and numbers in the paper. The
+                Julia fflecode/analysis/tttnew.jlwill run them all.
+              •Note: after running the Julia code, ffgures and tables will be saved inoutput/Tables. Nontrivial
+                numbers will be saved inoutput/Numbers. These are loaded programatically in the paper’s .tex ffles.
+
+           Instructions to Replicators
+           To run the code, follow these steps:
+              1.Open Stata 15.1. Install the needed packages. Change the paths in code/setup/Master.do, lines 7-12,
+                to the appropriate locations. Run code/setup/master.do.
+              2.Open Julia 1.10 (or newer). Setreplication packageas the working directory.
+              3.ActivateandinstantiateProject.toml. This will install appropriate versions of all needed packages.
+               (see https://pkgdocs.julialang.org/v1/environments/).
+              4. Open code/analysis/TTTnew.jl. There are sevaral options in lines 5–16. Make sure that
+               “use_simdata_approach”, “simulate_data”, “run_tests”, and “load_saved_boot_cutoffs_step2” are
+                set tofalse. Make sure that the remaining options are set totrue.
+              5.Changemypath(line 20 of TTTnew.jl) to the path to the replication package on your system. In
+                addition, make sure that “true_data_path” and “publicTHEOPdatapath” (lines 24 and 26) are set to
+                the appropriate locations.
+              6.Run “TTTnew.jl”
+           Important: The Stata code must be run before the Julia code.
+           One may run the Julia code in steps; e.g. one may run estimation but not counterfactuals, or counterfactuals
+           but not estimation. To do, set the appropriate ffags in lines 5–16 of “TTTnew.jl” to false. Each step depends
+           on the previous steps. For example, if the code has not yet been run with “estimate = true,” then running
+           counterfactuals will throw an error.
+
+           List of Exhibits
+           The provided code reproduces analogues of all numbers, tables, and ffgures in the paper. However, because
+           simulated data is used, the exact values cannot be reproduced.
+
+           Numbers (all require restricted data):
+              •Number in abstract (“I estimate that two thirds of the plan’s 9.1% impact”): Numbers/top10_impact.tex,
+                produced by describeNumbers.jl, lines 21-23.
+              •Numbers in introduction, ffrst paragraph of page 2: Numbers/top10_impact.tex and Num-
+                bers/top10_impact_allaware.tex, produced by describeNumbers.jl, lines 21-23 and lines 27-29,
+                respectively.
+              •Numbers in section 6.1:
+                  –“I ffnd a 13.8% increase” (p28): Numbers/fft_rdd.tex, produced by describeFit2024.jl.
+                  –Panel A shows... (p.29, text and footnote 21): Numbers/jump_prA_surv.tex, Num-
+                   bers/jump_prA_model.tex, Numbers/prA_model.tex, Numbers/jump_prA_surv_UTA.tex,
+                   Numbers/jump_prA_model_UTA.tex, Numbers/prA_model_UTA.tex, Numbers/prA_model_dif_nottt.tex,
+                   respectively. Produced by describeFit2024.jl.
+              •Numbers in section 6.3: “However, the mechanical and informative effects of the percent plan would be
+                larger, indicating that information about pricing and about admissions are complementary, with the
+                introduction of the percent plan leading to a...”: describeNumbers.jl, lines 6-18.
+
+
+                                                  4              •Numbers in Appendix E.4, footnote 36: “Numbers/increase_enrollment_ttt.tex” and “Num-
+                bers/increase_enrollment_ttt_instatepublic.tex”, respectively, produced by descibe_extensions.jl.
+              •Numbers in Appendix E.4, “The total increase in four-year college enrollment among top-decile students
+                is equal to...”: “Numbers/increase_enrollment_ttt.tex,” “Numbers/increase_enrollment_nonttt.tex,”
+                and “Numbers/increase_enrollment_total.tex”, respectively, produced by describe_extensions.jl.
+              •Number in Appendix E.4, “The peer-average SAT score at baseline is equal to...”: “Num-
+                bers/mean_sat_1_base.tex”, produced by describe_extensions.jl.
+              •Numbers in Appendix E.5: “I ffnd that the LOS program would have increased UT Austin enrollment...”:
+               “Numbers/los_d1.tex, Numbers/los_d2.tex, Numbers/los_d5.tex, Numbers/los_d11.tex” respectively,
+                produced by describeNoLOS2024.jl.
+
+           Tables and Figures:
+              •Table 1: Output/Tables/means_studentlevel.tex, produced by code/setup/new_descriptive.do. Re-
+                quires restricted data.
+              •Figure 1: Output/Tables/ffg_fft_1.png, produced by code/analysis/describeFit2024.jl. Requires
+                restricted data.
+              •Table 2: Output/Tables/tab_gamma.tex, produced by describeResults2024.jl. Requires restricted data.
+              •Figure 2: Output/Tables/ffg_params.png, produced by describeResults2024.jl. Requires restricted
+                data.
+              •Figure 3: Output/Tables/ffg_prefs_aware_simple.png, produced by describeResults2024.jl. Requires
+                restricted data.
+              •Table 3: Output/Tables/tab_robustness.tex, produced by describeCounterfactuals2024.jl. Requires
+                restricted data.
+              •Figure 4: Output/Tables/ffg_cf_1.png, produced by describeCounterfactuals2024.jl. Requires restricted
+                data.
+              •Figure A1: Output/Tables/ffg_fft_1_UTA.png, produced by describeFit2024.jl. Requires restricted
+                data.
+              •Figure A2: Output/Tables/ffg_fft_1_TAMU.png, produced by describeFit2024.jl. Requires restricted
+                data.
+              •Figure A3: Output/Tables/ffg_fft_1_Other.png, produced by describeFit2024.jl. Requires restricted
+                data.
+              •Table A1: Output/Tables/tab_info.tex, produced by describeParameters2024.jl. Requires Restricted
+                Data.
+              •Table A2: Output/Tables/tab_cutoffs.tex, produced by describeParameters2024.jl. Requires Restricted
+                Data.
+              •Table A3: Output/Tables/tab_gamma_probit.tex, produced by describeParameters2024.jl. Requires
+                restricted data.
+              •Figure A4: Output/Tables/ffg_prefs_aware.png, produced by describeParameters2024.jl. Requires
+                restricted data.
+              •Figure A5: Output/Tables/ffg_cf_1b_bar.png, produced by describeCounterfactuals2024.jl. Requires
+                restricted data.
+              •Figure A6: Output/Tables/ffg_pushed_pulled_totalchange.png, produced by describe_extensions.jl.
+                Requires restricted data.
+
+
+
+                                                  5              •Figure A7: Output/Tables/ffg_pushed_pulled.png, produced by describe_extensions.jl. Requires
+                restricted data.
+              •Table A4: Output/Tables/tab_outcomes_nonffagship.tex, produced by describe_extensions.jl. Requires
+                restricted data.
+              •Figure A8: Output/Tables/ffg_total_persistence.png, produced by describe_extensions.jl. Requires
+                restricted data.
+              •Figure A9: Output/Tables/fft_los.png, produced by describeNoLos2024.jl. Requires restricted data.
+              •Table A5: Output/Tables/tab_robustness_classbalance_extension.tex, produced by describeAddi-
+                tionalModels.jl. Requires restricted data.
+              •Table A6: Output/Tables/tab_gamma_includev.tex, produced by describeAdditionalModels.jl. Re-
+                quires restricted data.
+              •Table A7: Output/Tables/tab_robustness_v.tex, produced by describeAdditionalModels.jl. Requires
+                restricted data.
+
+           References
+           Tienda, Marta, and Sullivan, Teresa A. 2011.Texas Higher Education Opportunity Project.Inter-university
+           Consortium for Political and Social Research [distributor], 2011-06-02.
+           https://doi.org/10.3886/ICPSR29841.v1
+           Tienda, Marta, and Sullivan, Teresa A. 2011. Texas Higher Education Opportunity Project. College
+           Administrative Public Use Data.https://oprdata.princeton.edu/archive/theop/. Accessed June 1, 2012.
+           National Center for Education Statistics. 2005. Integrated Postsecondary Education Data System. 2003
+           Directory Information (HD2003), Student Financial Aid and Net Price (SF0203) and institutional
+           characteristics (IC2003).
+           https://nces.ed.gov/ipeds/datacenter/DataFiles.aspx?year=2003&surveyNumber=-1&sid=5e6ce655-aa71-
+           4e53-ab9c-f9005443780c&rtid=7. Accessed July 2012.
+           U.S. Census Bureau and U.S. Bureau of Labor Statistics. n.d. March 2003 Current Population Survey
+           Public-Use Data.IPUMS [distributor].
+           https://cps.ipums.org/cps/. Accessed July 2012.
+           College Board. 2012.1999 SAT-ACT Concordance Table.
+           http://research.collegeboard.org/sites/default/ffles/publications/2012/7/researchnote-1999-7-concordance-
+           sat-act-students.pdf. Accessed July 2012.
+           University of Texas Offfce of Admissions. 2011.SAT-ACT Concordance Table.
+           http://www.utexas.edu/student/admissions/research/ACTSATconcordance.html. Accessed July 2012.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                  6

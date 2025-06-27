@@ -48,17 +48,10 @@ end
     end     
 end
 
-@testitem "test2 detect_paths_kind()" begin
-    tl = readlines(JPEtools.test_paths_disk())
-    results = [(true,false,true),(true,false,true),(true,true,true),(true,true,false),(false,true,false),(true,false,false)]
-    for (i,t) in enumerate(tl)
-        x = JPEtools.detect_path_kinds(t)
-        @test x == results[i]
-    end     
-end
 
-@testitem "test check_file_paths()" begin
-    tl = JPEtools.classify_files(JPEtools.package(which = "ECTA"),"code")
+@testitem "test check_file_paths()" tags=[:skipci] begin
+    JPEtools.PKG_ROOT = JPEtools.test_package_path("ECTA")
+    tl = JPEtools.classify_files(JPEtools.PKG_ROOT,"code")
     @test JPEtools.check_file_paths(tl[2])[3]
     @test JPEtools.check_file_paths(tl[2])[2] == "windows"
     @test !JPEtools.check_file_paths(tl[1])[3]
