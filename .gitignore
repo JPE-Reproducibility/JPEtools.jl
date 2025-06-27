@@ -140,6 +140,8 @@ libraries
 !package-output-map.xlsx
 
 # Exclusions we need
+TEMPLATE.html
+TEMPLATE_files/
 build/requirements.txt
 codeocean-*-live
 tmp
@@ -149,3 +151,4 @@ cache
 *.LIC
 # Ignore all files in any directory named "data"
 **/data/*
+/.quarto/

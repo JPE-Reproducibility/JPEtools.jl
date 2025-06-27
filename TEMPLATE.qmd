@@ -7,6 +7,9 @@ format:
   html: default
 ---
 
+# {{< var title >}}
+
+Author: {{< var author >}}
 
 
 
