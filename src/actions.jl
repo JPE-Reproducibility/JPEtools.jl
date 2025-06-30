@@ -689,7 +689,7 @@ function runcloc()
 end
 
 
-function precheck_package(; which = nothing)
+function precheck_package()
 
     pkg = PKG_ROOT
     @info "Starting precheck of package $(basename(pkg))"
