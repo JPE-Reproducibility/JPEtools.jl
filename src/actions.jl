@@ -43,10 +43,9 @@ count how many files belong to each of code,data,documentation according to thei
 
 outputs `txt` files into folder `generated/` which will be created inside the repository.
 """
-function classify_files(pkg_path::String,kind::String; relpath = false)
+function classify_files(pkg_path::String,kind::String,fp::String; relpath = false)
 
      # write to `generated`
-     fp = joinpath(root(),"generated")
      mkpath(fp)
 
     sensitivenames = []
@@ -234,11 +233,8 @@ Takes an array of file paths, reads each associated file and checks its content 
 
 Outputs three markdown files into `generated/` with partial reports.
 """
-function file_paths(files::Array)
-
-    # File path
-    fp = joinpath(root(),"generated")
-
+function file_paths(files::Array,fp::String)
+    
     isdir(fp) || error("execute `get_program_files()` first")
 
     # program_list_file = joinpath(fp,"program-files.txt")
@@ -302,6 +298,8 @@ function file_paths(files::Array)
         ))
     end
 
+    splitat = basename(dirname(fp))
+
     open(joinpath(fp,"report-file-paths-detail.md"),"w") do io
         println(io, "## Filepaths Analysis Details\n")
 
@@ -309,7 +307,7 @@ function file_paths(files::Array)
             println(io, "No file paths found.")
         else
             for (file, lines) in results
-                println(io, "**$(path_splitter(file))**\n")
+                println(io, "**$(path_splitter(file,splitat))**\n")
                 for l in lines
                     println(io, "- ", l)
                 end
@@ -326,7 +324,7 @@ function file_paths(files::Array)
         else
             println(io,"\nWe found the following set of hard coded numbers. This may be completely legitimate (parameter input, thresholds for computations, etc), and is hence only for information.\n")
             for (file, lines) in hardcodes
-                println(io, "**$(path_splitter(file))**\n")
+                println(io, "**$(path_splitter(file,splitat))**\n")
                 for l in lines
                     println(io, "- ", l)
                 end
@@ -343,7 +341,7 @@ function file_paths(files::Array)
         else
             println(io,"\nWe found the following instances of potentially personally identifying information. This may be completely legitimate but might be worth checking. *As a reminder, privacy legislation in many countries (e.g. GDPR in EU) prohibits the dissemination of personal identifiable information without prior (and documented) consent of individuals.* If indeed you want to publish such information with your replication package, you should probably have obtained IRB approval for this - please check!\n")
             for (file, lines) in piis
-                println(io, "**$(path_splitter(file))**\n")
+                println(io, "**$(path_splitter(file,splitat))**\n")
                 for l in lines
                     println(io, "- ", l)
                 end
@@ -355,10 +353,11 @@ function file_paths(files::Array)
     nothing
 end
 
-path_splitter(path::String) = split(path, basename(PKG_ROOT), limit = 2)[end]
+path_splitter(path::String,at) = split(path, at, limit = 2)[end]
 
 "Read entire package content and tabulate file sizes with file hash to check for duplicates"
 function generate_file_sizes_md5(folder_path::String, output_path::String; large_size = 100)
+
 
     table = DataFrame(name = [],name_slug = [],  size = [], sizeMB = [], checksum= [])
 
@@ -367,7 +366,7 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
         for file in files
             name = file
             file_path = joinpath(root, file)
-            short_path = path_splitter(file_path)
+            short_path = path_splitter(file_path,basename(folder_path))
             file_size = filesize(file_path)
             size_mb = file_size / 1024^2  # Convert bytes to megabytes
             md5_checksum =  open(file_path,"r") do fio
@@ -480,8 +479,7 @@ Read the README
 
 Find the README in the package and read from either `.md` or `.pdf` format. Then produce a dictionary with the mention of interesting terms, like software used, whether confidential etc.
 """
-function read_README()
-    fp = joinpath(root(),"generated")
+function read_README(pkg_loc, fp::String)
 
     doclist = joinpath(fp,"documentation-files.txt")
     isfile(doclist) || error("the file $doclist must exist")
@@ -508,7 +506,7 @@ function read_README()
             to be the relevant `README`.\n
             """)
 
-            if dirname(d) != PKG_ROOT
+            if dirname(d) != pkg_loc
                 println(io, 
                 """**Wrong `README` location warning:**
                 
@@ -588,9 +586,9 @@ end
 
 
 
-function create_example_package()
+function create_example_package(at_root::String)
 
-    pkg = joinpath(root(),"replication-package")
+    pkg = joinpath(at_root,"replication-package")
     mkpath(pkg)
     
     mkpath(joinpath(pkg,"data"))
@@ -689,34 +687,52 @@ function runcloc()
 end
 
 
-function precheck_package()
+"""
+checks replication package in directory `pkg_loc`
 
-    pkg = PKG_ROOT
-    @info "Starting precheck of package $(basename(pkg))"
+It is assumed that `pkg_loc` is descendant in a directory structure of this kind, i.e. what is implemented in https://github.com/JPE-Reproducibility/JPEtemplate
 
-    out = joinpath(root(),"generated")
+in this example, `pkg_loc = abspath(replication-package)`
+
+```
+.
+├── generated
+├── images
+├── LICENSE
+├── replication-package
+├── package-output-map.xlsx
+├── README.md
+└── TEMPLATE.qmd
+```
+"""
+function precheck_package(pkg_loc::String)
+
+    pkg_root = joinpath(pkg_loc,"..")
+    @info "Starting precheck of package $(basename(pkg_root))"
+
+    out = joinpath(pkg_root,"generated")
     mkpath(out)
 
     # make package manifest table
     @info "generate package manifest: all files, sizes, md5 hash"
-    generate_file_sizes_md5(pkg,out)
+    generate_file_sizes_md5(pkg_loc,out)
 
     # classify all files
     @info "Classify each file as code/data/docs"
-    codefiles = classify_files(PKG_ROOT,"code")
-    datafiles = classify_files(PKG_ROOT,"data")
-    docsfiles = classify_files(PKG_ROOT,"docs")
+    codefiles = classify_files(pkg_loc,"code",out)
+    datafiles = classify_files(pkg_loc,"data",out)
+    docsfiles = classify_files(pkg_loc,"docs",out)
 
     # run cloc to get line counts
-    cloc = read(run(`cloc --md --quiet --out=generated/report-cloc.md $pkg`))
+    cloc = read(run(`cloc --md --quiet --out=$(joinpath(out,"report-cloc.md")) $pkg_loc`))
 
     # check file paths in code files
     @info "Parse code files and search for filepaths"
-    file_paths(codefiles)
+    file_paths(codefiles,out)
 
     # parse README
     @info "Read the README file"
-    read_README( )
+    read_README( pkg_loc, out )
 
     @info "precheck done."
 

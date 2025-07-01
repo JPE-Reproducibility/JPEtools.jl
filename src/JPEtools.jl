@@ -32,10 +32,6 @@ dvtoken() = ENV["JPE_DV"]
 include("actions.jl")
 include("dataverse.jl")
 
-global PKG_ROOT = haskey(ENV,"PKG_ROOT") ? haskey(ENV,"PKG_ROOT") : joinpath(@__DIR__,"..", "replication-package")
-
-# necessarily equal to PKG_ROOT
-root() = PKG_ROOT
 
 
 end # module
