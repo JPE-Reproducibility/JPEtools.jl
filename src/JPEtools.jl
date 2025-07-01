@@ -1,7 +1,6 @@
 module JPEtools
 
 
-using FileIO
 using Markdown
 using Dates
 using SHA
