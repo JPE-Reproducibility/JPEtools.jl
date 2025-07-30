@@ -443,7 +443,7 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
                 write(io, "| $(ir.name) | $(round(ir.size, digits=2)) | $(ir.checksum) |\n")
             end
         else
-            println(io, "We not find any zero sized files.\n")
+            println(io, "We did not find any zero sized files.\n")
         end
     end
 
@@ -466,7 +466,7 @@ function generate_file_sizes_md5(folder_path::String, output_path::String; large
                 write(io, "| $(ir.name) | $(round(ir.sizeMB, digits=2))|\n")
             end
         else
-            println(io, "We not find any files larger than $(large_size)MB.\n")
+            println(io, "We did not find any files larger than $(large_size)MB.\n")
         end
     end
 
