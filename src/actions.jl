@@ -491,7 +491,7 @@ function read_README(pkg_loc, fp::String)
 
     open(joinpath(fp,"report-readme.md"),"w") do io
         println(io, "### `README` Analysis\n")
-        if length(d0) == 0
+        if length(d0) == 0 || !any(is_readmes)
             println(io,"🚨 **No `README` found!** 🚨")
             println(io,"The package **must** contain either `README.md` or `README.pdf`. This file needs to be placed at the root of your replication package. Please fix.")
         else
@@ -725,6 +725,13 @@ function precheck_package(pkg_loc::String)
 
     # run cloc to get line counts
     cloc = read(run(`cloc --md --quiet --out=$(joinpath(out,"report-cloc.md")) $pkg_loc`))
+    @info "printing cloc output"
+
+    open(joinpath(out,"report-cloc.md")) do IO
+        for i in eachline(IO)
+            println(i)
+        end
+    end
 
     # check file paths in code files
     @info "Parse code files and search for filepaths"
