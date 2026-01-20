@@ -11,7 +11,6 @@ using Printf
 using Glob
 using Infiltrator
 using TestItems
-using Term.Prompts
 using PDFIO
 using CSV
 using PIIScanner

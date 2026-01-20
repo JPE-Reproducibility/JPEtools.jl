@@ -540,15 +540,6 @@ function make_test_paths()
     x
 end
 
-function delete_package()
-    pkg = joinpath(root(),"replication-package")
-
-    a = ask(DefaultPrompt(["y", "no"], 1, "This will delete the replication package. Sure?"))
-    if a == "y"
-        rm(pkg,recursive = true)
-    end
-end
-
 function delete_generated()
     pkg = joinpath(root(),"generated")
     rm(pkg,recursive = true)
