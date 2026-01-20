@@ -12,8 +12,6 @@
 #     git commit -m "${{ env.CI_COMMIT_MESSAGE }}"
 #     git push
 
-myfun() = abspath(@__DIR__,"..")
-
 "recursively search a directory tree for match"
 function rdir(dir::AbstractString, pat::Glob.FilenameMatch)
     result = String[]
@@ -48,9 +46,9 @@ function classify_files(pkg_path::String,kind::String,fp::String; relpath = fals
      # write to `generated`
      mkpath(fp)
 
-    sensitivenames = []
-    nonsensitivenames = []
-    files = []
+    sensitivenames = String[]
+    nonsensitivenames = String[]
+    files = String[]
 
     if kind == "code"
         extensions = ["ado","do","r","rmd","qmd","ox","m","py","nb","ipynb","sas","jl","f","f90","c","c++","sh","toml","yaml","yml","fs","fsx","tex","typst"]
@@ -142,10 +140,11 @@ end
 
 
 # PII checker strings
-pii_strings_names() = join(["name", "fname", "lname", "first_name", "last_name"],"|")
-pii_strings_dates() = join(["birth", "birthday", "bday", "dob"],"|")
-pii_strings_locations() = join([
-    "district",    "city",    "country",    "subcountry",    "parish",    "loc",    "street",    "village",    "community",    "address",    "gps",    "degree",    "minute",    "second",    "lat",    "lon",    "coord",    "location",    "house",    "compound",    "panchayat",    "territory",    "municipality",    "precinct",    "block",    "zipcode",    "zip"],"|")
+word_boundary(x) = "\\b$x\\b"
+pii_strings_names() = join(word_boundary.(["name", "fname", "lname", "firstname","lastname","first_name", "last_name"]),"|")
+pii_strings_dates() = join(word_boundary.(["birth", "birthday", "bday", "dob"]),"|")
+pii_strings_locations() = join(word_boundary.([
+    "district",    "city",    "country",    "subcountry",    "parish",    "loc",    "street",    "village",    "community",    "address",    "gps",    "degree",    "minute",    "second",    "lat",    "lon",    "coord",    "location",    "house",    "compound",    "panchayat",    "territory",    "municipality",    "precinct",    "block",    "zipcode",    "zip"]),"|")
 pii_strings_other() = join([
     "school",    "social",    "network",    "census",    "gender",    "sex",    "fax",    "email",    "url",    "child",    "beneficiary",    "mother",    "wife",    "father",    "husband",    "phone",    "spouse",    "daughter",    "son"], "|")
 
@@ -158,10 +157,6 @@ function check_file_paths(filepath)
     has_windows = false
     has_unix = false
     has_drive = false
-    pii_names = String[]
-    pii_dates = String[]
-    pii_locations = String[]
-    pii_other = String[]
 
     try
         open(filepath, "r") do io
@@ -184,18 +179,6 @@ function check_file_paths(filepath)
                 if contains(line, hardcode_regex())
                     push!(hardcodes, @sprintf("Line %d, : %s",i,strip(line)))
                 end
-                if contains(line, Regex("$(pii_strings_other())","i"))
-                    push!(pii_other,@sprintf("Line %d, : %s",i,strip(line)))
-                end
-                if contains(line, Regex("$(pii_strings_names())","i"))
-                    push!(pii_names,@sprintf("Line %d, : %s",i,strip(line)))
-                end
-                if contains(line, Regex("$(pii_strings_dates())","i"))
-                    push!(pii_dates,@sprintf("Line %d, : %s",i,strip(line)))
-                end
-                if contains(line, Regex("$(pii_strings_locations())","i"))
-                    push!(pii_locations,@sprintf("Line %d, : %s",i,strip(line)))
-                end
             end
         end
     catch e
@@ -212,17 +195,7 @@ function check_file_paths(filepath)
         "none"
     end
 
-    # collate all piis
-    piis = [pii_names...,pii_dates...,pii_locations...,pii_other...]
-
-    # pii = Dict(
-    #     :names => pii_names,
-    #     :dates => pii_dates,
-    #     :locations => pii_locations,
-    #     :other => pii_other
-    # )
-
-    return (lines, classification, has_drive, hardcodes,piis)
+    return (lines, classification, has_drive, hardcodes)
 end
 
 
@@ -248,15 +221,12 @@ function file_paths(files::Array,fp::String)
 
     for file in files
         file = strip(file)
-        lines, classification, has_drive, hardcoded, pii = check_file_paths(file)
+        lines, classification, has_drive, hardcoded = check_file_paths(file)
         if !isempty(lines)
             results[file] = lines
         end
         if !isempty(hardcoded)
             hardcodes[file] = hardcoded
-        end
-        if !isempty(pii)
-            piis[file] = pii
         end
         if classification != "none"
             stats[classification] += 1
@@ -333,22 +303,22 @@ function file_paths(files::Array,fp::String)
         end
     end
 
-    open(joinpath(fp,"report-pii.md"),"w") do io
-        println(io, "## Potential Personal Identifiable Information (PII)\n")
+    # open(joinpath(fp,"report-pii.md"),"w") do io
+    #     println(io, "## Potential Personal Identifiable Information (PII)\n")
 
-        if isempty(piis)
-            println(io, "✅ No PII found.")
-        else
-            println(io,"\nWe found the following instances of potentially personally identifying information. This may be completely legitimate but might be worth checking. *As a reminder, privacy legislation in many countries (e.g. GDPR in EU) prohibits the dissemination of personal identifiable information without prior (and documented) consent of individuals.* If indeed you want to publish such information with your replication package, you should probably have obtained IRB approval for this - please check!\n")
-            for (file, lines) in piis
-                println(io, "**$(path_splitter(file,splitat))**\n")
-                for l in lines
-                    println(io, "- ", l)
-                end
-                println(io)
-            end
-        end
-    end
+    #     if isempty(piis)
+    #         println(io, "✅ No PII found.")
+    #     else
+    #         println(io,"\nWe found the following instances of potentially personally identifying information. This may be completely legitimate but might be worth checking. *As a reminder, privacy legislation in many countries (e.g. GDPR in EU) prohibits the dissemination of personal identifiable information without prior (and documented) consent of individuals.* If indeed you want to publish such information with your replication package, you should probably have obtained IRB approval for this - please check!\n")
+    #         for (file, lines) in piis
+    #             println(io, "**$(path_splitter(file,splitat))**\n")
+    #             for l in lines
+    #                 println(io, "- ", l)
+    #             end
+    #             println(io)
+    #         end
+    #     end
+    # end
 
     nothing
 end
@@ -570,15 +540,6 @@ function make_test_paths()
     x
 end
 
-function delete_package()
-    pkg = joinpath(root(),"replication-package")
-
-    a = ask(DefaultPrompt(["y", "no"], 1, "This will delete the replication package. Sure?"))
-    if a == "y"
-        rm(pkg,recursive = true)
-    end
-end
-
 function delete_generated()
     pkg = joinpath(root(),"generated")
     rm(pkg,recursive = true)
@@ -736,6 +697,11 @@ function precheck_package(pkg_loc::String)
     # check file paths in code files
     @info "Parse code files and search for filepaths"
     file_paths(codefiles,out)
+
+    @info "look for PII"
+    data_matches = PIIScanner.scan_data_files(datafiles)
+    code_matches = PIIScanner.scan_code_files(codefiles)
+    PIIScanner.write_pii_report(data_matches,code_matches,out,splitat = dirname(pkg_loc))
 
     # parse README
     @info "Read the README file"

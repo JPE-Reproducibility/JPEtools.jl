@@ -1,27 +1,19 @@
 module JPEtools
 
 
-using Markdown
 using Dates
 using SHA
-# using Glob
-# using PackageAnalyzer
 using HTTP
 using JSON3
-using DataStructures
-using Dates
 using DataFrames
-using RCall
-using Downloads
 using Pkg
 using Printf
 using Glob
 using Infiltrator
 using TestItems
-using Term.Prompts
 using PDFIO
-using ProgressMeter
 using CSV
+using PIIScanner
 
 
 # dv token
