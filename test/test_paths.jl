@@ -34,11 +34,6 @@ end
 end
 
 
-@testitem "test test" begin
-    @test true
-end
-    
-
 @testitem "test detect_paths_kind()" begin
     tl = JPEtools.make_test_paths()
     results = [(false,true,false),(false,true,false),(false,true,false),(true,false,true),(true,false,false),(true,true,true)]
@@ -48,11 +43,23 @@ end
     end     
 end
 
+@testitem "precheck dummy package" begin
+    using DataFrames, CSV
+    include(joinpath(@__DIR__,"deps.jl"))
 
-@testitem "test check_file_paths()" tags=[:skipci] begin
-    JPEtools.PKG_ROOT = JPEtools.test_package_path("ECTA")
-    tl = JPEtools.classify_files(JPEtools.PKG_ROOT,"code")
-    @test JPEtools.check_file_paths(tl[2])[3]
-    @test JPEtools.check_file_paths(tl[2])[2] == "windows"
-    @test !JPEtools.check_file_paths(tl[1])[3]
+    loc = make_test_package()
+
+    JPEtools.precheck_package(loc)
+
+    @test isdir(joinpath(loc,"..","generated"))
+    @test isfile(joinpath(loc,"..","generated","data-files.md"))
+    @test isfile(joinpath(loc,"..","generated","report-pii.md"))
+
+    pii = readlines(joinpath(loc,"..","generated","report-pii.md"))
+    # get the 16th line of this report
+    pii_data = strip.(split(pii[16], "|"))
+    @test pii_data[3] == "`test_script.R`"
+    @test pii_data[5] == "first_name, name, email"
+    
 end
+

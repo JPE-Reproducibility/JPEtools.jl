@@ -1,22 +1,20 @@
 name = "JPEtools"
 uuid = "3207fb7f-a2d6-47fa-abcb-ee7fd07ee121"
-authors = ["Florian Oswald <florian.oswald@gmail.com> and contributors"]
 version = "1.0.0-DEV"
+authors = ["Florian Oswald <florian.oswald@gmail.com> and contributors"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 Mustache = "ffc61752-8dc7-55ee-8c37-f3e9cdd09e70"
 PDFIO = "4d0d745f-9d9a-592e-8d18-1ad8a0f42b92"
+PIIScanner = "cf352d04-0051-48bd-b141-6a91af5c6085"
 PackageAnalyzer = "e713c705-17e4-4cec-abe0-95bf5bf3e10c"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
@@ -32,6 +30,7 @@ TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 CSV = "0.10.15"
 Mustache = "1.0.21"
 PDFIO = "0.1.15"
+PIIScanner = "1.0.0"
 ProgressMeter = "1.10.4"
 
 [extras]
