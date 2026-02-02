@@ -51,14 +51,14 @@ function classify_files(pkg_path::String,kind::String,fp::String; relpath = fals
     files = String[]
 
     if kind == "code"
-        extensions = ["ado","do","r","rmd","qmd","ox","m","py","nb","ipynb","sas","jl","f","f90","c","c++","sh","toml","yaml","yml","fs","fsx","tex","typst"]
+        extensions = ["ado","do","r","rmd","qmd","ox","m","py","nb","ipynb","sas","jl","f","f90","c","c++","sh","toml","yaml","yml","fs","fsx","tex","typst","sql", "jmd"]
         
         outfile = joinpath(fp,"program-files.txt")
 
         sensitivenames = ["Makefile"]
 
     elseif kind == "data"
-        extensions = ["gpkg","dat","dta","rda","rds","rdata","ods","xls","xlsx","mat","csv","","txt","shp","xml","prj","dbf","sav","pkl","jld","jld2","gz","sas7bdat","rar","zip","7z","tar","tgz","bz2","xz"]
+        extensions = ["gpkg","dat","dta","rda","rds","rdata","ods","xls","xlsx","mat","csv","","txt","shp","xml","prj","dbf","sav","pkl","jld","jld2","gz","sas7bdat","rar","zip","7z","tar","tgz","bz2","xz","parquet", "json", "jsonl", "pickle"]
 
         outfile = joinpath(fp,"data-files.md")
 
